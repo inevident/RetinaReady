@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "experiment": "RETFound-Green frozen-encoder review-priority challenger",
+  "upstream": {
+    "project_name": "RETFound-Green",
+    "project_repository": "https://github.com/justinengelmann/RETFound_Green",
+    "repository_revision": "767c77ecc6ad2656ace051b17bf22d2b47485c6c",
+    "paper_url": "https://www.nature.com/articles/s41467-025-62123-z",
+    "license_name": "Justin's Custom Non-Commercial Research Licence (CNCRL)",
+    "license_url": "https://github.com/justinengelmann/RETFound_Green/blob/767c77ecc6ad2656ace051b17bf22d2b47485c6c/LICENSE",
+    "license_raw_url": "https://raw.githubusercontent.com/justinengelmann/RETFound_Green/767c77ecc6ad2656ace051b17bf22d2b47485c6c/LICENSE",
+    "license_sha256": "4c048644d5843d14adfa3451a7a0a3ca010300035d11c243e7a946f3691cce62",
+    "required_license_signatures": [
+      "only for non-commercial research",
+      "Industry-Involved Project",
+      "provides funding, resources or personnel",
+      "prior written permission"
+    ],
+    "weights_release": "v0.1",
+    "weights_url": "https://github.com/justinengelmann/RETFound_Green/releases/download/v0.1/retfoundgreen_statedict.pth",
+    "weights_release_size_bytes": 87396676,
+    "architecture": "timm vit_small_patch14_reg4_dinov2, img_size 392x392, num_classes 0, global average pooling",
+    "normalization": "three-channel mean 0.5 and standard deviation 0.5"
+  },
+  "project_context": {
+    "event_name": "Build with Gemma NYC: On-Device AI for Healthcare",
+    "event_url": "https://gemmanycaihealthcare.devpost.com/",
+    "commercial_entity_involvement": true,
+    "evidence": [
+      {
+        "fact": "The event page says the hackathon is approved and prize-funded by Google's Gemma team.",
+        "source_url": "https://gemmanycaihealthcare.devpost.com/"
+      },
+      {
+        "fact": "The event awards cash prizes and subjects submissions to judging.",
+        "source_url": "https://gemmanycaihealthcare.devpost.com/"
+      },
+      {
+        "fact": "The event requires a public code repository and Kaggle writeup.",
+        "source_url": "https://gemmanycaihealthcare.devpost.com/"
+      }
+    ],
+    "prior_written_permission": {
+      "obtained": false,
+      "evidence_path": null,
+      "evidence_sha256": null
+    }
+  },
+  "frozen_inputs": {
+    "manifests": {
+      "train": {
+        "path": "data/escalation-manifests/train.csv",
+        "sha256": "3edb9fe596ffd61439caacaf6ddf9cd9299ca4e3a689b26f020c5674e33d3992"
+      },
+      "val": {
+        "path": "data/escalation-manifests/val.csv",
+        "sha256": "f24f8375c6b4c6925e4049b862ef56d7cf75bcada116d957af673e0f048920d5"
+      },
+      "calibration": {
+        "path": "data/escalation-manifests/calibration.csv",
+        "sha256": "ce81aba4321b0e16e2ac58bdf0d6b37eedfca3bdf4b86e97b71271f01fcb363a"
+      },
+      "eval": {
+        "path": "data/escalation-manifests/eval.csv",
+        "sha256": "796b2afdcfdb84b431ea0d0d3f4329d08b183720cb038f555fb7db3fe09ae1b4"
+      }
+    },
+    "control_report": {
+      "path": "outputs/escalation-baseline/report.json",
+      "sha256": "3d3798692ec04649d079de3b1d2045bcc79f5ba732557d70b6decb0aa8e9d984"
+    }
+  },
+  "local_weight_path": "models/retfound-green/retfoundgreen_statedict.pth"
+}

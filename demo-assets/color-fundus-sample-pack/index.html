@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RetinaReady · Color fundus sample pack</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #eafff8; background: #061416; }
+      main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+      header { display: grid; gap: 14px; margin-bottom: 38px; }
+      .kicker { color: #65e6bf; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { max-width: 780px; margin: 0; font-size: clamp(38px, 7vw, 76px); line-height: .98; letter-spacing: -.05em; }
+      header p { max-width: 760px; margin: 0; color: #a8c4be; line-height: 1.6; }
+      .notice { padding: 14px 16px; border: 1px solid #31554f; border-radius: 14px; color: #bed6d1; background: #0c2224; font-size: 13px; line-height: 1.55; }
+      section { margin-top: 46px; }
+      h2 { margin: 0 0 7px; font-size: 25px; }
+      .section-copy { margin: 0 0 20px; color: #86a59f; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      article { overflow: hidden; border: 1px solid #24433e; border-radius: 18px; background: #0a1d1f; box-shadow: 0 20px 50px rgba(0,0,0,.16); }
+      article img, article video { display: block; width: 100%; aspect-ratio: 4 / 3; background: #02090a; object-fit: contain; }
+      article video { aspect-ratio: 16 / 9; }
+      .meta { display: grid; gap: 7px; padding: 15px; }
+      .meta strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; }
+      .meta span { color: #82a39c; font-size: 11px; }
+      .tag { width: fit-content; padding: 4px 8px; border-radius: 999px; color: #052019 !important; background: #62e5bb; font-size: 9px !important; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+      .tag.bad { color: #311b04 !important; background: #ffc66c; }
+      .tag.video { color: #07162b !important; background: #86baff; }
+      footer { margin-top: 52px; padding-top: 22px; border-top: 1px solid #24433e; color: #789790; font-size: 12px; line-height: 1.6; }
+      code { color: #d4fff2; }
+      @media (max-width: 700px) { main { width: min(100% - 20px, 1180px); padding-top: 28px; } .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="kicker">RetinaReady demo assets</span>
+        <h1>Color fundus sample pack</h1>
+        <p>Eight upstream-labelled DeepDRiD stills plus two openly licensed clinical-camera videos. Everything works offline from this folder.</p>
+        <div class="notice"><strong>Important:</strong> “Gradable” describes technical image sufficiency—not whether the eye is healthy. Files marked <code>REFERENCE_ONLY</code> are outside the app's four-hash model scope.</div>
+      </header>
+
+      <section>
+        <h2>Gradable stills</h2>
+        <p class="section-copy">Upstream DeepDRiD overall-quality label = 1.</p>
+        <div class="grid">
+          <article><img src="stills/01_GRADABLE_APP_ROUTINE__DeepDRiD_146_l2.jpg" alt="Gradable DeepDRiD 146 l2 color fundus image" /><div class="meta"><span class="tag">Gradable · App</span><strong>01_GRADABLE_APP_ROUTINE__DeepDRiD_146_l2.jpg</strong><span>Clarity 10 · Field 8 · Artifact 0</span></div></article>
+          <article><img src="stills/02_GRADABLE_APP_PRIORITY__DeepDRiD_296_l2.jpg" alt="Gradable DeepDRiD 296 l2 color fundus image" /><div class="meta"><span class="tag">Gradable · App</span><strong>02_GRADABLE_APP_PRIORITY__DeepDRiD_296_l2.jpg</strong><span>Clarity 10 · Field 8 · Artifact 0</span></div></article>
+          <article><img loading="lazy" src="stills/03_GRADABLE_REFERENCE_ONLY__DeepDRiD_267_l2.jpg" alt="Gradable DeepDRiD 267 l2 color fundus image" /><div class="meta"><span class="tag">Gradable · Reference</span><strong>03_GRADABLE_REFERENCE_ONLY__DeepDRiD_267_l2.jpg</strong><span>Clarity 8 · Field 8 · Artifact 4</span></div></article>
+          <article><img loading="lazy" src="stills/04_GRADABLE_REFERENCE_ONLY__DeepDRiD_277_r1.jpg" alt="Gradable DeepDRiD 277 r1 color fundus image" /><div class="meta"><span class="tag">Gradable · Reference</span><strong>04_GRADABLE_REFERENCE_ONLY__DeepDRiD_277_r1.jpg</strong><span>Clarity 10 · Field 8 · Artifact 4</span></div></article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ungradable stills</h2>
+        <p class="section-copy">Upstream DeepDRiD overall-quality label = 0.</p>
+        <div class="grid">
+          <article><img loading="lazy" src="stills/05_UNGRADABLE_APP_LIMITED__DeepDRiD_265_l2.jpg" alt="Ungradable DeepDRiD 265 l2 color fundus image" /><div class="meta"><span class="tag bad">Ungradable · App</span><strong>05_UNGRADABLE_APP_LIMITED__DeepDRiD_265_l2.jpg</strong><span>Clarity 6 · Field 8 · Artifact 6</span></div></article>
+          <article><img loading="lazy" src="stills/06_UNGRADABLE_APP_RETAKE__DeepDRiD_431_l2.jpg" alt="Ungradable DeepDRiD 431 l2 color fundus image" /><div class="meta"><span class="tag bad">Ungradable · App</span><strong>06_UNGRADABLE_APP_RETAKE__DeepDRiD_431_l2.jpg</strong><span>Clarity 1 · Field 8 · Artifact 10</span></div></article>
+          <article><img loading="lazy" src="stills/07_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_294_l2.jpg" alt="Ungradable DeepDRiD 294 l2 color fundus image" /><div class="meta"><span class="tag bad">Ungradable · Reference</span><strong>07_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_294_l2.jpg</strong><span>Clarity 1 · Field 8 · Artifact 10</span></div></article>
+          <article><img loading="lazy" src="stills/08_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_296_r1.jpg" alt="Ungradable DeepDRiD 296 r1 color fundus image" /><div class="meta"><span class="tag bad">Ungradable · Reference</span><strong>08_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_296_r1.jpg</strong><span>Clarity 8 · Field 6 · Artifact 6</span></div></article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Videos</h2>
+        <p class="section-copy">Browser-preview inputs only. Neither video is submitted to the still-image models.</p>
+        <div class="grid">
+          <article><video controls muted playsinline preload="metadata" src="videos/VIDEO_01_COLOR_FUNDUS_MOVING__PedCam.mp4"></video><div class="meta"><span class="tag video">Moving color fundus</span><strong>VIDEO_01_COLOR_FUNDUS_MOVING__PedCam.mp4</strong><span>12.92 s · 948×720 · 25 FPS · purpose-built PedCam</span></div></article>
+          <article><video controls muted playsinline preload="metadata" src="videos/VIDEO_02_NO_RAW_FUNDUS_TABLETOP_WORKFLOW__Kestrel3100m.mp4"></video><div class="meta"><span class="tag video">Tabletop workflow B-roll</span><strong>VIDEO_02_NO_RAW_FUNDUS_TABLETOP_WORKFLOW__Kestrel3100m.mp4</strong><span>49.00 s · 1280×720 · 30 FPS · Kestrel 3100m</span></div></article>
+        </div>
+      </section>
+
+      <footer>Read <strong>README.md</strong> and <strong>labels.csv</strong> for source, license, exact annotations, app behavior, and claim boundaries.</footer>
+    </main>
+  </body>
+</html>

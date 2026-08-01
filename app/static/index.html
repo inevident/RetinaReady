@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="RetinaReady checks retinal capture quality locally, before the patient leaves."
+    />
+    <title>RetinaReady · Local retinal workflow</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%230c2829'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%236ee7c1' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23f4c56a'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <script src="/assets/capture-guidance.js" defer></script>
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="RetinaReady home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>RetinaReady</span>
+      </a>
+      <div class="runtime">
+        <span class="runtime-dot" aria-hidden="true"></span>
+        <span id="runtimeLabel">Local demo ready</span>
+        <span class="runtime-divider" aria-hidden="true"></span>
+        <strong>Zero cloud uploads</strong>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="pageTitle">
+        <div>
+          <p class="kicker" id="modeKicker"><span>Local models</span> · On-device retinal workflow</p>
+          <h1 id="pageTitle">Quality first.<br /><em>Then prioritize review.</em></h1>
+        </div>
+        <div class="intro-aside">
+          <p class="intro-copy">
+            A private, offline workflow for conventional central-field color
+            fundus photography. It checks capture quality before any
+            non-diagnostic review-priority stage.
+          </p>
+          <div class="evidence-chips" aria-label="Frozen direct-logit research evaluation">
+            <span>182 held-out usable images</span>
+            <span>95.7% priority AUC</span>
+            <span>65/65 confident routes correct</span>
+          </div>
+          <small>Frozen direct-logit research evaluation · live generation uncalibrated · not clinical validation</small>
+        </div>
+      </section>
+
+      <section class="mode-switcher" aria-labelledby="modeTitle">
+        <div>
+          <p class="section-label" id="modeTitle">Product mode</p>
+          <p id="modeDescription">
+            Quality runs first; only READY images can reach review prioritization.
+          </p>
+        </div>
+        <div class="mode-options" role="group" aria-label="Choose product mode">
+          <button type="button" data-product-mode="QUALITY_ONLY">
+            <strong>Quality only</strong>
+            <span>RetinaReady</span>
+          </button>
+          <button type="button" data-product-mode="ESCALATION_ONLY">
+            <strong>Escalation only</strong>
+            <span>RetinaPriority</span>
+          </button>
+          <button
+            class="is-active"
+            type="button"
+            data-product-mode="COMBINED"
+            aria-pressed="true"
+          >
+            <strong>Combined</strong>
+            <span>Quality → priority</span>
+          </button>
+        </div>
+        <span class="adapter-state" id="adapterState">
+          Priority artifact not loaded · fails closed to UNCERTAIN
+        </span>
+      </section>
+
+      <section class="workspace" aria-label="Local retinal workflow">
+        <article class="card capture-card">
+          <div class="card-heading">
+            <div>
+              <p class="step-label">01 · Capture</p>
+              <h2>Acquire a color fundus image</h2>
+            </div>
+            <span class="demo-pill" id="enginePill">Demo mode</span>
+          </div>
+
+          <div class="guidance-launch" id="guidanceLaunch">
+            <div>
+              <span class="guidance-launch-label"><i></i> Live capture prototype</span>
+              <strong>Watch guidance find the best frame</strong>
+              <small>Conventional fundus-camera workflow · local frame telemetry</small>
+            </div>
+            <div class="guidance-launch-actions">
+              <button id="startGuidanceButton" type="button">
+                Start replay <span aria-hidden="true">→</span>
+              </button>
+              <button class="guidance-secondary-button" id="loadVideoButton" type="button">
+                Open camera recording
+              </button>
+              <input
+                id="videoInput"
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                hidden
+              />
+            </div>
+          </div>
+
+          <section
+            class="guidance-stage"
+            id="guidanceStage"
+            aria-label="Simulated retinal acquisition replay"
+            hidden
+          >
+            <div class="guidance-viewport" id="guidanceViewport">
+              <video
+                id="guidanceVideo"
+                muted
+                playsinline
+                preload="metadata"
+                hidden
+              ></video>
+              <canvas
+                id="guidanceCanvas"
+                width="720"
+                height="540"
+                role="img"
+                aria-label="Retrospective color fundus acquisition replay"
+              ></canvas>
+              <div class="guidance-vignette" aria-hidden="true"></div>
+              <div class="guidance-scanline" aria-hidden="true"></div>
+              <div class="guidance-topline">
+                <span class="guidance-live"><i></i> <span id="guidanceSource">Local preview</span></span>
+                <span id="guidanceRate">6 Hz guidance</span>
+              </div>
+              <div class="guidance-reticle" id="guidanceReticle" aria-hidden="true">
+                <span></span>
+              </div>
+              <div class="guidance-flash" id="guidanceFlash" aria-hidden="true"></div>
+              <div class="guidance-command">
+                <span id="guidancePhase">Acquiring</span>
+                <strong id="guidanceInstruction" aria-live="polite">
+                  Initializing local frame guidance…
+                </strong>
+              </div>
+            </div>
+
+            <div class="guidance-readout">
+              <div class="guidance-score-ring" id="guidanceScoreRing">
+                <strong id="guidanceScore">0</strong>
+                <span>frame score</span>
+              </div>
+              <div class="guidance-metrics" aria-label="Prototype technical frame metrics">
+                <div>
+                  <span>Field</span>
+                  <b><i id="guidanceFieldBar"></i></b>
+                  <strong id="guidanceField">0</strong>
+                </div>
+                <div>
+                  <span>Focus</span>
+                  <b><i id="guidanceClarityBar"></i></b>
+                  <strong id="guidanceClarity">0</strong>
+                </div>
+                <div>
+                  <span>Light</span>
+                  <b><i id="guidanceLightBar"></i></b>
+                  <strong id="guidanceLight">0</strong>
+                </div>
+                <div>
+                  <span>Stability</span>
+                  <b><i id="guidanceStabilityBar"></i></b>
+                  <strong id="guidanceStability">0</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="guidance-progress-row">
+              <div>
+                <span>Autocapture lock</span>
+                <b><i id="guidanceLockBar"></i></b>
+              </div>
+              <button id="stopGuidanceButton" type="button">Stop preview</button>
+            </div>
+            <p class="guidance-disclosure" id="guidanceDisclosure">
+              Simulated acquisition using retrospective color fundus imagery.
+              Frame guidance is a local technical prototype, not a clinical or
+              device-validated model output.
+            </p>
+          </section>
+
+          <div
+            class="dropzone"
+            id="dropzone"
+            role="button"
+            tabindex="0"
+            aria-controls="fileInput"
+            aria-label="Choose a conventional central-field color fundus image"
+          >
+            <input
+              id="fileInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+            />
+            <div class="drop-empty" id="dropEmpty">
+              <span class="upload-glyph" aria-hidden="true">↑</span>
+              <strong id="dropTitle">Drop a fundus photo here</strong>
+              <span id="dropBrowse">or <u>browse this device</u></span>
+              <small id="dropFormat">JPG, PNG or WEBP · up to 16 MB</small>
+            </div>
+            <div class="preview-wrap" id="previewWrap" hidden>
+              <img id="previewImage" alt="Selected retinal capture preview" />
+              <div class="preview-shade"></div>
+              <button class="replace-button" id="replaceButton" type="button">
+                Replace image
+              </button>
+              <div class="file-meta">
+                <strong id="fileName"></strong>
+                <span id="fileSize"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sample-row" aria-label="Try demo samples">
+            <span>Try a sample</span>
+            <div>
+              <button class="sample-button" type="button" data-scenario="ROUTINE">Routine</button>
+              <button class="sample-button" type="button" data-scenario="READY">Priority</button>
+              <button class="sample-button" type="button" data-scenario="LIMITED">Limited</button>
+              <button class="sample-button" type="button" data-scenario="RETAKE">Retake</button>
+            </div>
+          </div>
+
+          <button class="primary-button" id="analyzeButton" type="button" disabled>
+            <span id="analyzeButtonText">Select an image to continue</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+
+          <div class="privacy-note">
+            <span class="lock-glyph" aria-hidden="true"></span>
+            <p>
+              <strong>Stays on this device.</strong>
+              The image is processed in memory and is not retained.
+            </p>
+          </div>
+        </article>
+
+        <article class="card result-card" aria-live="polite" aria-busy="false" id="resultCard">
+          <div class="card-heading result-heading">
+            <div>
+              <p class="step-label" id="resultStepLabel">02 · Workflow result</p>
+              <h2 id="resultTitle">Quality + review priority</h2>
+            </div>
+            <span class="status-badge status-waiting" id="statusBadge">Waiting</span>
+          </div>
+
+          <div class="result-empty" id="resultEmpty">
+            <div class="scan-orbit" aria-hidden="true">
+              <span></span>
+            </div>
+            <h3 id="resultEmptyTitle">Your workflow result will appear here</h3>
+            <p id="resultEmptyCopy">
+              RetinaReady checks focus, illumination, and field coverage for
+              conventional central-field color fundus photos before the optional
+              review-priority stage.
+            </p>
+            <div class="empty-factors" aria-hidden="true">
+              <span>Clarity</span>
+              <span>Light</span>
+              <span>Field</span>
+            </div>
+          </div>
+
+          <div class="loading-state" id="loadingState" hidden>
+            <div class="loading-eye" aria-hidden="true"><span></span></div>
+            <h3 id="loadingTitle">Running quality-first workflow</h3>
+            <p>Running the local assessment…</p>
+          </div>
+
+          <div class="result-content" id="resultContent" hidden>
+            <section class="result-summary">
+              <div class="result-icon" id="resultIcon" aria-hidden="true"></div>
+              <div>
+                <p id="resultEyebrow"></p>
+                <h3 id="resultSummary"></h3>
+              </div>
+            </section>
+
+            <section class="workflow-trace" id="workflowTrace" hidden>
+              <div class="trace-heading">
+                <p class="section-label">Fail-closed workflow</p>
+                <span id="workflowModeLabel">Combined</span>
+              </div>
+              <ol id="workflowTraceList"></ol>
+            </section>
+
+            <section class="decision-trace" id="decisionTrace" hidden>
+              <div class="trace-heading">
+                <p class="section-label">Local decision path</p>
+                <span>Fail-closed</span>
+              </div>
+              <ol>
+                <li>
+                  <span>Quality specialist</span>
+                  <strong id="traceSpecialist"></strong>
+                </li>
+                <li>
+                  <span id="traceGemmaLabel">Gemma 4 verifier</span>
+                  <strong id="traceGemma"></strong>
+                </li>
+                <li>
+                  <span>Safety policy</span>
+                  <strong id="tracePolicy"></strong>
+                </li>
+              </ol>
+            </section>
+
+            <section class="issues-section" id="issuesSection">
+              <p class="section-label" id="issuesLabel">Workflow signals</p>
+              <div class="issue-chips" id="issueChips"></div>
+            </section>
+
+            <section class="scores-section" id="scoresSection">
+              <p class="section-label">Quality factors</p>
+              <div id="scoreRows"></div>
+            </section>
+
+            <section class="quality-attention" id="qualityAttention" hidden>
+              <div class="attention-heading">
+                <p class="section-label" id="attentionLabel">
+                  Model quality attention — not pathology localization.
+                </p>
+                <span id="attentionMethod">Factor Grad-CAM</span>
+              </div>
+              <div class="attention-body">
+                <img
+                  id="attentionImage"
+                  alt="Technical quality attention map"
+                  decoding="async"
+                />
+                <div>
+                  <p>Weakest predicted factor</p>
+                  <strong id="attentionFactor"></strong>
+                  <small>
+                    Highlighted regions influenced the model's technical-quality
+                    score. They are not evidence of disease or lesion boundaries.
+                  </small>
+                </div>
+              </div>
+            </section>
+
+            <section class="instruction-panel">
+              <span class="instruction-number" aria-hidden="true">↻</span>
+              <div>
+                <p>Recommended next step</p>
+                <strong id="instructionText"></strong>
+              </div>
+            </section>
+
+            <dl class="result-meta">
+              <div>
+                <dt>Privacy</dt>
+                <dd id="privacyMeta">On device</dd>
+              </div>
+              <div>
+                <dt>Model</dt>
+                <dd id="modelMeta">Demo engine</dd>
+              </div>
+              <div>
+                <dt>Latency</dt>
+                <dd id="latencyMeta">—</dd>
+              </div>
+            </dl>
+          </div>
+
+          <p class="safety-footer">
+            Quality and review-priority support only · No diagnosis or treatment guidance
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Built for Build with Gemma 4 Healthcare NYC</span>
+      <span>Private by architecture · Designed to abstain</span>
+    </footer>
+
+    <div class="toast" id="toast" role="status" hidden></div>
+  </body>
+</html>

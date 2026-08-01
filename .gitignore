@@ -1,0 +1,37 @@
+.DS_Store
+.env
+.venv*/
+venv*/
+__pycache__/
+*.py[cod]
+*.log
+
+# Public research data is downloaded locally, never committed.
+data/raw/
+data/external/
+data/extracted/
+data/cache/
+
+# Model weights and training artifacts are large local outputs.
+models/*
+!models/README.md
+!models/retinapriority-gemma4-26b/
+!models/retinapriority-gemma4-26b/**
+!models/retinaready-quality-specialist/
+!models/retinaready-quality-specialist/**
+!models/retinaready-escalation-demo/
+!models/retinaready-escalation-demo/**
+checkpoints/
+outputs/
+output/
+ml/runs/
+ml/cache/
+wandb/
+.playwright-cli/
+*.gguf
+*.safetensors
+
+# The compact, project-specific inference artifacts are small enough to make
+# the public demo reproducible. The multi-gigabyte Gemma base/projector remain
+# ignored and are documented in models/README.md.
+!models/retinapriority-gemma4-26b/retinapriority-gemma4-26b-a4b-lora-f32.gguf

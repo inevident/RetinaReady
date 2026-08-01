@@ -1,0 +1,21 @@
+RetinaPriority Gemma 4 LoRA
+
+This directory contains a modified, derived artifact based on
+google/gemma-4-26B-A4B-it at revision
+4d7ae4984b7db7de8f8457170b3f1a419ee76d52.
+It is a RetinaReady research artifact and is not an official Google model.
+
+Changes made by RetinaReady contributors in 2026:
+
+- trained a q_proj/v_proj rank-16 LoRA on public DeepDRiD-derived manifests;
+- selected the step-60 adapter on the frozen validation split; and
+- converted the selected adapter to an F32 GGUF with llama.cpp b10180 at
+  commit 11b068d06605288ce7917534b46d52b47823dc13.
+
+The Gemma base weights are not included in this repository. Full provenance,
+hashes, evaluation boundaries, and limitations are recorded in manifest.json
+and the repository documentation.
+
+Gemma 4 is licensed under the Apache License, Version 2.0. A copy is provided
+at ../../licenses/GEMMA-4-APACHE-2.0.txt. Google Gemma license information:
+https://ai.google.dev/gemma/docs/gemma_4_license

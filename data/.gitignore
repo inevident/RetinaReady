@@ -1,0 +1,8 @@
+# DeepDRiD contains medical images and is 1.4 GB compressed. Keep every
+# downloaded/extracted copy local; reproduce it with scripts/download_deepdrid.sh.
+raw/*
+!raw/.gitkeep
+
+# The workspace-level template ignores JSON broadly; this small, reproducible
+# dataset summary is intentional source documentation.
+!manifests/summary.json

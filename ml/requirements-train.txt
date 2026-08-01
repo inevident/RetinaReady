@@ -1,0 +1,18 @@
+# Matches Google's official Gemma 4 vision QLoRA guide (July 2026).
+# Install on Linux with an NVIDIA GPU; this stack is not the local macOS path.
+torch
+torchvision
+tensorboard
+torchao
+transformers>=5.10.1
+huggingface_hub
+datasets
+accelerate
+evaluate
+bitsandbytes
+trl
+peft>=0.19.0
+safetensors>=0.6,<1
+protobuf
+pillow
+sentencepiece

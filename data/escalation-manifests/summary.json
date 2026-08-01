@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "purpose": "non-diagnostic retinal review-priority research",
+  "label_semantics": {
+    "ROUTINE": "dataset eye grade 0 or 1; lower review priority, not disease exclusion",
+    "PRIORITY": "dataset eye grade 2, 3, or 4; higher review priority, not a diagnosis",
+    "UNCERTAIN": "reserved for model abstention; never used as a training truth label"
+  },
+  "grade_derivation": "the one non-empty left_eye_DR_Level/right_eye_DR_Level field; filename side is audit-only",
+  "split_policy": {
+    "seed": 42,
+    "validation_fraction_within_official_training": 0.1,
+    "calibration_fraction_within_official_training": 0.4,
+    "stratification": "patient maximum eye grade",
+    "official_validation_role": "evaluation only; never model or threshold selection"
+  },
+  "license": {
+    "identifier": "CC BY-SA 4.0",
+    "license_file": "data/raw/deepdrid-v1.1/LICENSE",
+    "license_sha256": "87a816969906840bf7af8d4d01cdfad4741b18946365e1f286007935509f2edb",
+    "upstream_readme": "data/raw/deepdrid-v1.1/README.md",
+    "upstream_readme_sha256": "ee90267d9c81e226b50b53b87bf3ceac2ac7dc337a859528e29f5a7f972436f4",
+    "citation_doi": "10.1016/j.patter.2022.100512",
+    "obligations_note": "preserve attribution, indicate modifications, and share adapted dataset material alike"
+  },
+  "sources": {
+    "data/raw/deepdrid-v1.1/regular_fundus_images/regular-fundus-training/regular-fundus-training.csv": "0f26db5cd2cf14939f6a96732a7e9e5aef243ae70a29e099e678d412cb4c47b6",
+    "data/raw/deepdrid-v1.1/regular_fundus_images/regular-fundus-validation/regular-fundus-validation.csv": "54c2f11bf0647fe3cc64496cd83646ea4a4fdf0aab82b1cd4891ad998f220332",
+    "data/manifests/train.csv": "61774c851aedbb9d21a4e99d3565207b9f507c3eca688b6927380b9b9ac9795f",
+    "data/manifests/val.csv": "77c538fb733fe6b32dcaeae1784ccf37983597a9c7d7d3f2f8b5852f779dc83b"
+  },
+  "partitions": {
+    "train": {
+      "images": 600,
+      "patients": 150,
+      "escalation_labels": {
+        "PRIORITY": 260,
+        "ROUTINE": 340
+      },
+      "dr_grades": {
+        "0": 268,
+        "1": 72,
+        "2": 118,
+        "3": 108,
+        "4": 34
+      },
+      "overall_quality": {
+        "0": 306,
+        "1": 294
+      },
+      "filename_side_grade_field_mismatches": 8,
+      "manifest": "data/escalation-manifests/train.csv",
+      "manifest_sha256": "3edb9fe596ffd61439caacaf6ddf9cd9299ca4e3a689b26f020c5674e33d3992"
+    },
+    "val": {
+      "images": 120,
+      "patients": 30,
+      "escalation_labels": {
+        "PRIORITY": 54,
+        "ROUTINE": 66
+      },
+      "dr_grades": {
+        "0": 52,
+        "1": 14,
+        "2": 26,
+        "3": 20,
+        "4": 8
+      },
+      "overall_quality": {
+        "0": 50,
+        "1": 70
+      },
+      "filename_side_grade_field_mismatches": 3,
+      "manifest": "data/escalation-manifests/val.csv",
+      "manifest_sha256": "f24f8375c6b4c6925e4049b862ef56d7cf75bcada116d957af673e0f048920d5"
+    },
+    "calibration": {
+      "images": 480,
+      "patients": 120,
+      "escalation_labels": {
+        "PRIORITY": 206,
+        "ROUTINE": 274
+      },
+      "dr_grades": {
+        "0": 220,
+        "1": 54,
+        "2": 90,
+        "3": 86,
+        "4": 30
+      },
+      "overall_quality": {
+        "0": 268,
+        "1": 212
+      },
+      "filename_side_grade_field_mismatches": 0,
+      "manifest": "data/escalation-manifests/calibration.csv",
+      "manifest_sha256": "ce81aba4321b0e16e2ac58bdf0d6b37eedfca3bdf4b86e97b71271f01fcb363a"
+    },
+    "eval": {
+      "images": 400,
+      "patients": 100,
+      "escalation_labels": {
+        "PRIORITY": 180,
+        "ROUTINE": 220
+      },
+      "dr_grades": {
+        "0": 174,
+        "1": 46,
+        "2": 92,
+        "3": 68,
+        "4": 20
+      },
+      "overall_quality": {
+        "0": 218,
+        "1": 182
+      },
+      "filename_side_grade_field_mismatches": 0,
+      "manifest": "data/escalation-manifests/eval.csv",
+      "manifest_sha256": "796b2afdcfdb84b431ea0d0d3f4329d08b183720cb038f555fb7db3fe09ae1b4"
+    }
+  },
+  "patient_overlap": {
+    "train_val": 0,
+    "train_calibration": 0,
+    "train_eval": 0,
+    "val_calibration": 0,
+    "val_eval": 0,
+    "calibration_eval": 0
+  },
+  "test_used": false,
+  "mshf_used": false,
+  "uwf_used": false
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "bundle": "retinaready-quality-specialist-frozen-posthoc-20260731",
+  "backbone": {
+    "file": "densenet121-a639ec97.pth",
+    "source": "torchvision DenseNet121 IMAGENET1K_V1",
+    "sha256": "a639ec97d7c33b07ae66f0b5fb7d0192f95a3b11b7576c66c0126c2a727c4395"
+  },
+  "decision_head": {
+    "file": "decision-head.pt",
+    "sha256": "84081ad06122a0354d0bd4c31cdc53052f1bdb4999fb706b7babcfe72b94d936",
+    "source_report": "outputs/quality-specialist-rigorous-factors/report.json"
+  },
+  "factor_head": {
+    "file": "factor-head.pt",
+    "sha256": "84081ad06122a0354d0bd4c31cdc53052f1bdb4999fb706b7babcfe72b94d936",
+    "source_report": "outputs/quality-specialist-rigorous-factors/report.json"
+  },
+  "policy": {
+    "calibration_unit": "patient",
+    "evidence_status": "nominal_post_hoc",
+    "fresh_calibration": false,
+    "deployment_guarantee": false,
+    "ready_threshold_strictly_greater_than": 0.9498774409294128,
+    "retake_threshold_strictly_less_than": 0.015006430447101593,
+    "false_ready_risk_limit": 0.1,
+    "false_retake_risk_limit": 0.1,
+    "per_gate_delta": 0.025,
+    "nominal_simultaneous_confidence_if_calibration_were_fresh": 0.95
+  },
+  "model_card": "docs/QUALITY_SPECIALIST_MODEL_CARD.md"
+}

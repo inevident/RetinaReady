@@ -1,0 +1,14 @@
+# Generated CSV manifests intentionally use RFC-style CRLF records. Preserve
+# their bytes because report manifests bind their exact SHA-256 values, while
+# teaching Git not to flag the carriage return as trailing whitespace.
+*.csv -text whitespace=cr-at-eol
+
+# Keep opaque runtime and demo artifacts out of text conversion and text diffs.
+*.gguf binary
+*.pt binary
+*.pth binary
+*.zip binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.mp4 binary

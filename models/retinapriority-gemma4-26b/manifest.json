@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "artifact_type": "retinapriority_gemma4_lora_local_bundle",
+  "created_at_utc": "2026-08-01T13:06:28Z",
+  "clinical_use": false,
+  "selected_adapter": {
+    "source_run": "gemma4-26b-retinapriority-decision-smoke",
+    "source_run_name_status": "historical provenance label retained unchanged",
+    "selected_candidate": "selected-qv-step60",
+    "lora_target_modules": ["q_proj", "v_proj"],
+    "selected_training_step": 60,
+    "selection_split": "data/escalation-quality-pass-manifests/val.csv",
+    "selection_manifest_sha256": "a419ddd601c51f3b02976c512105dafc7134ab654ca9a21e3ffaeb8a0d0610b3",
+    "selection_rule": "highest validation ROC-AUC first; calibration and eval remained unopened for selection",
+    "audited_unique_candidate_count": 5,
+    "validation_images": 70,
+    "validation_roc_auc_priority_positive": 0.92375,
+    "validation_balanced_accuracy_at_0_5": 0.833333,
+    "validation_priority_recall_at_0_5": 0.866667,
+    "validation_routine_recall_at_0_5": 0.8,
+    "adapter_safetensors_sha256": "ba22230a8e49e7281c4ca5c2d56886dd4e22c14d25aa710c8f4f5af6168f7e2e",
+    "run_provenance_sha256": "08cd07fa2550898f2b4eac0d2786759342088b48ae5ba6d11214df0855191e0f"
+  },
+  "validation_only_candidate_comparison": [
+    {
+      "candidate": "selected-qv-step60",
+      "roc_auc_priority_positive": 0.92375
+    },
+    {
+      "candidate": "quality-pass-qv-challenger-v1",
+      "roc_auc_priority_positive": 0.895
+    },
+    {
+      "candidate": "quality-pass-full-root",
+      "roc_auc_priority_positive": 0.88
+    },
+    {
+      "candidate": "quality-pass-full-checkpoint-74",
+      "roc_auc_priority_positive": 0.868333
+    },
+    {
+      "candidate": "quality-pass-full-checkpoint-111",
+      "roc_auc_priority_positive": 0.88,
+      "balanced_accuracy_at_0_5": 0.741667,
+      "priority_recall_at_0_5": 0.633333,
+      "routine_recall_at_0_5": 0.85
+    }
+  ],
+  "conversion": {
+    "llama_cpp_tag": "b10180",
+    "llama_cpp_commit": "11b068d06605288ce7917534b46d52b47823dc13",
+    "lora_gguf": "retinapriority-gemma4-26b-a4b-lora-f32.gguf",
+    "lora_gguf_bytes": 22372384,
+    "lora_gguf_sha256": "f4ae552e9012cd5e4c0a71d8152447e6fcd2f736cfd6070f8b7db67c8bc4c5b3"
+  },
+  "runtime_base": {
+    "model_path": "../retinaready-gemma4-26b-tuned/retinaready-gemma4-26b-a4b-q4_0.gguf",
+    "model_sha256": "41b9cbf3896a518a3fc8bd8b70fcc05fe4735a2474783c0d4df3a8c32975b5bb",
+    "projector_path": "../retinaready-gemma4-26b-tuned/retinaready-gemma4-26b-a4b-mmproj-bf16.gguf",
+    "projector_sha256": "2413217255d10cf9fc13a2756b448e4760f2fc945cfec2d2b6100a0f74b39ca7",
+    "model_alias": "retinapriority-gemma4-26b"
+  },
+  "quality_first_runtime": {
+    "first_stage": "compact_retinaready_quality_specialist",
+    "escalation_gate": "READY",
+    "non_ready_behavior": "block_escalation",
+    "escalation_adapter": "selected-qv-step60",
+    "launcher": "scripts/run_priority_demo.sh",
+    "path_basis": "repository_root"
+  },
+  "live_llama_cpp_evaluation_boundary": {
+    "inference_mode": "constrained_free_generation",
+    "calibration_status": "uncalibrated",
+    "input_scope": "two pinned DeepDRiD quality-passing presentation examples",
+    "offline_direct_logit_thresholds_apply": false
+  },
+  "demo_buttons": [
+    {
+      "label": "Routine",
+      "image_id": "146_l2",
+      "source_partition": "training",
+      "role": "calibration-demo",
+      "quality_result": "READY",
+      "escalation_result": "ROUTINE_REVIEW"
+    },
+    {
+      "label": "Priority",
+      "image_id": "296_l2",
+      "source_partition": "validation",
+      "role": "validation",
+      "quality_result": "READY",
+      "escalation_result": "PRIORITY_REVIEW"
+    },
+    {
+      "label": "Limited",
+      "image_id": "265_l2",
+      "source_partition": "validation",
+      "quality_result": "LIMITED",
+      "escalation_result": "BLOCKED"
+    },
+    {
+      "label": "Retake",
+      "image_id": "431_l2",
+      "source_partition": "validation",
+      "quality_result": "RETAKE",
+      "escalation_result": "BLOCKED"
+    }
+  ],
+  "direct_logit_research_evaluation": {
+    "validation_report_sha256": "79912b0cd9ca94b9fb98adb1f55320ca8cefda5b4cf196c86518d13ecde90f1d",
+    "calibration_report_sha256": "e060ab8b07350be09e3ff9374a1507b6d8faf30fb105ddaf75744dcc668b78eb",
+    "eval_report_sha256": "7b7e658394b9e4e46bbbffded6f64eada36f48dcc7bd0063899a1c3e84f1db60",
+    "selective_policy_report_sha256": "d9d281224765f90b81b4ed364f01a75b481c5258faac3b2182a266d09ca2d889",
+    "eval_images": 182,
+    "eval_patients": 65,
+    "eval_roc_auc_priority_positive": 0.956903,
+    "eval_balanced_accuracy_at_0_5": 0.912355,
+    "routine_if_score_strictly_less_than": 0.0002611903190957194,
+    "priority_if_score_strictly_greater_than": 0.9993736658418905,
+    "otherwise": "UNCERTAIN",
+    "selective_image_coverage": 0.35714285714285715,
+    "selective_accepted_images": 65,
+    "selective_accepted_correct": 65,
+    "false_routine_count": 0,
+    "false_priority_count": 0,
+    "research_risk_limit_per_error_type": 0.1,
+    "simultaneous_confidence_lower_bound": 0.9
+  },
+  "locked_posttrain_audit": {
+    "status": "completed_research_evaluation_not_runtime_promotion",
+    "evidence_root": "../../outputs/a100-retinapriority-20260801/mirror/ml/runs/gemma4-26b-retinapriority-cross-run-posttrain-v1",
+    "selection_frozen_before_calibration_or_evaluation": true,
+    "selection_report_sha256": "bfdbde17f51ceb114254948af604133c12e0669f50446fe7760e75d6e9bb9506",
+    "calibration_report_sha256": "bd09629981063ece7ee489579fdd3db88e7c755429c0377843a5e2d6ecf8b177",
+    "evaluation_report_sha256": "1bd5a651a9d8058648f35b4b2a91422de4a90c17c86fc4c9bca579f5ba0a0fbe",
+    "selective_policy_report_sha256": "c178379db6632163862a4e82cdb27f26b41069676902c8cd37ca43a48e974ce0",
+    "partition_separation_report_sha256": "d892e7b788ba4466189c8fc0470b407d5c0279e9f6d98df6cc8969f023d0501c",
+    "completion_report_sha256": "a0c6c2b3294f08c4ee592b7823ab6ed00ab06069f3d5ee9a0022899fd51637ee",
+    "artifact_profile": "cross-run-posttrain-v1",
+    "artifact_files": 19,
+    "artifact_bytes": 1030753,
+    "remote_and_local_manifest_sha256": "89a278d01bd534b4d584d61ed3d8bbdbe431d2c23d82af20e5bc8c6b966cf7da",
+    "comparison_report_sha256": "274d2524e631573d735eb27f00345d0a0d18add96c3c4c1f874041f43632b27b",
+    "artifact_comparison_matched": true
+  },
+  "local_acceptance": {
+    "report_path": "../../outputs/final-priority-demo-acceptance-20260801.json",
+    "report_sha256": "1856e637bad6401f5cf7298e1cdddc7ba7ba0753207a1ca98e01c2e012fb9f18",
+    "status": "passed",
+    "cases": 4,
+    "quality_passing_routes_released": 2,
+    "non_ready_routes_blocked": 2,
+    "browser_console_errors": 0,
+    "browser_console_warnings": 0
+  },
+  "limitations": [
+    "Review priority is not diagnosis, disease exclusion, or treatment advice.",
+    "The live llama.cpp path uses constrained free generation and does not inherit the calibrated direct-logit confidence policy.",
+    "The live research demo accepts only pinned DeepDRiD quality-passing example bytes and fails closed otherwise.",
+    "The calibration cohort is too small to certify a 5% patient-event risk target; the reported 10% target is research evidence, not clinical validation."
+  ]
+}

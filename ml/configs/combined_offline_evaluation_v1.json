@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "evaluation_name": "retinaready-quality-plus-retinapriority-official-validation-v1",
+  "dataset": {
+    "name": "DeepDRiD",
+    "version": "v1.1",
+    "source_split": "regular-fundus-validation",
+    "images": 400,
+    "patients": 100
+  },
+  "inputs": {
+    "quality_bundle_manifest": {
+      "path": "models/retinaready-quality-specialist/manifest.json",
+      "sha256": "d1e51bea40dcbfee170920e73369c76ef10c8f49e20604869e91e996e53870a2"
+    },
+    "quality_backbone": {
+      "path": "models/retinaready-quality-specialist/densenet121-a639ec97.pth",
+      "sha256": "a639ec97d7c33b07ae66f0b5fb7d0192f95a3b11b7576c66c0126c2a727c4395"
+    },
+    "quality_decision_head": {
+      "path": "models/retinaready-quality-specialist/decision-head.pt",
+      "sha256": "84081ad06122a0354d0bd4c31cdc53052f1bdb4999fb706b7babcfe72b94d936"
+    },
+    "quality_factor_head": {
+      "path": "models/retinaready-quality-specialist/factor-head.pt",
+      "sha256": "84081ad06122a0354d0bd4c31cdc53052f1bdb4999fb706b7babcfe72b94d936"
+    },
+    "quality_evaluation_manifest": {
+      "path": "data/manifests/val.csv",
+      "sha256": "77c538fb733fe6b32dcaeae1784ccf37983597a9c7d7d3f2f8b5852f779dc83b"
+    },
+    "quality_image_level_report": {
+      "path": "outputs/quality-specialist-rigorous-factors/report.json",
+      "sha256": "94dc4d800f6a292a55df0d9f5ffed897b45eb8de3e42a07c609e2de6cd4121cb"
+    },
+    "quality_report_hash_attestation": {
+      "path": "outputs/hybrid-validation-exploratory.json",
+      "sha256": "9ce42d2ce7b208e398eae8692802e414dd1db5b7fc54fd8df03437416415c044"
+    },
+    "escalation_evaluation_manifest": {
+      "path": "data/escalation-manifests/eval.csv",
+      "sha256": "796b2afdcfdb84b431ea0d0d3f4329d08b183720cb038f555fb7db3fe09ae1b4"
+    },
+    "escalation_image_level_report": {
+      "path": "outputs/escalation-baseline/report.json",
+      "sha256": "3d3798692ec04649d079de3b1d2045bcc79f5ba732557d70b6decb0aa8e9d984"
+    },
+    "escalation_model_artifact": {
+      "path": "outputs/escalation-baseline/escalation-baseline-experimental.pt",
+      "sha256": "d01df16b339b4e262af67e57e2e32c14144047e970599621ca302f2d48314f84"
+    },
+    "escalation_promotion_manifest": {
+      "path": "models/retinaready-escalation-demo/promotion-manifest.json",
+      "sha256": "7b4157e4c1a5ba5011b5af88605c86d308d7fe99b1f59ff12506335391239c7c"
+    }
+  }
+}

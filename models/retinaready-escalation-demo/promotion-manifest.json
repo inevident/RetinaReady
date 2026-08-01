@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "promotion_id": "retinaready-escalation-baseline-20260801-research-demo",
+  "scope": "nonclinical-hackathon-research-demo-only",
+  "required_opt_in": {
+    "environment_variable": "RETINA_ENABLE_ESCALATION_RESEARCH_DEMO",
+    "value": "1"
+  },
+  "network_required": false,
+  "fail_closed_decision": "UNCERTAIN",
+  "allowed_released_decisions": [
+    "ROUTINE_REVIEW",
+    "PRIORITY_REVIEW"
+  ],
+  "bindings": {
+    "artifact": {
+      "file": "outputs/escalation-baseline/escalation-baseline-experimental.pt",
+      "sha256": "d01df16b339b4e262af67e57e2e32c14144047e970599621ca302f2d48314f84"
+    },
+    "report": {
+      "file": "outputs/escalation-baseline/report.json",
+      "sha256": "3d3798692ec04649d079de3b1d2045bcc79f5ba732557d70b6decb0aa8e9d984"
+    },
+    "backbone": {
+      "file": "models/retinaready-quality-specialist/densenet121-a639ec97.pth",
+      "sha256": "a639ec97d7c33b07ae66f0b5fb7d0192f95a3b11b7576c66c0126c2a727c4395"
+    }
+  },
+  "artifact_contract": {
+    "schema_version": 1,
+    "experimental_only": true,
+    "runtime_integration_authorized": false,
+    "diagnostic_use_authorized": false,
+    "architecture": "frozen ImageNet DenseNet-121 1024-D global features plus 5-member MLP ensemble",
+    "input_dim": 1024,
+    "hidden_dim": 64,
+    "ensemble_members": 5
+  },
+  "policy_contract": {
+    "internal_labels": [
+      "ROUTINE",
+      "PRIORITY",
+      "UNCERTAIN"
+    ],
+    "output_mapping": {
+      "ROUTINE": "ROUTINE_REVIEW",
+      "PRIORITY": "PRIORITY_REVIEW",
+      "UNCERTAIN": "UNCERTAIN"
+    },
+    "routine_if_score_strictly_less_than": 0.00006010895594954491,
+    "priority_if_score_strictly_greater_than": 0.9996064305305481,
+    "equality_and_between_thresholds": "UNCERTAIN"
+  },
+  "preprocessing_contract": "crop-black-border-threshold15-buffer20; square-pad; resize-512-antialias; to-tensor; normalize-0.5",
+  "notes": [
+    "This manifest externally allowlists an otherwise experimental artifact only for an opted-in, local hackathon research demonstration.",
+    "It does not change the source artifact's runtime or diagnostic authorization flags.",
+    "Any missing opt-in, checksum mismatch, schema mismatch, decode error, non-finite score, or inference error must return UNCERTAIN and release no priority decision."
+  ]
+}

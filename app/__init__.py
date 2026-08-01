@@ -1,0 +1,1 @@
+"""RetinaReady local demo application."""

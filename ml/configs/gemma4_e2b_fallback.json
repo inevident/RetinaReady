@@ -1,0 +1,19 @@
+{
+  "model_id": "google/gemma-4-E2B-it",
+  "model_revision": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+  "processor_id": "google/gemma-4-E2B-it",
+  "processor_revision": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+  "train_manifest": "data/manifests/train.csv",
+  "val_manifest": "data/manifests/val.csv",
+  "output_dir": "ml/runs/gemma4-e2b-retina-qlora",
+  "epochs": 1,
+  "max_steps": -1,
+  "learning_rate": 0.0002,
+  "batch_size": 1,
+  "gradient_accumulation_steps": 8,
+  "max_seq_length": 1024,
+  "lora_rank": 16,
+  "lora_alpha": 16,
+  "lora_dropout": 0.05,
+  "seed": 42
+}

@@ -1,0 +1,11 @@
+filename,media_type,source,split,overall_quality,technical_quality,clarity,field_definition,artifact,app_demo_behavior,notes
+stills/01_GRADABLE_APP_ROUTINE__DeepDRiD_146_l2.jpg,image/jpeg,DeepDRiD v1.1,training,1,GRADABLE,10,8,0,ROUTINE demo route,"Exact pinned app sample; routing label is not a health claim"
+stills/02_GRADABLE_APP_PRIORITY__DeepDRiD_296_l2.jpg,image/jpeg,DeepDRiD v1.1,validation,1,GRADABLE,10,8,0,PRIORITY demo route,"Exact pinned app sample; priority means faster clinician review"
+stills/03_GRADABLE_REFERENCE_ONLY__DeepDRiD_267_l2.jpg,image/jpeg,DeepDRiD v1.1,validation,1,GRADABLE,8,8,4,Outside exact-hash app scope,"Visual reference only"
+stills/04_GRADABLE_REFERENCE_ONLY__DeepDRiD_277_r1.jpg,image/jpeg,DeepDRiD v1.1,validation,1,GRADABLE,10,8,4,Outside exact-hash app scope,"Visual reference only"
+stills/05_UNGRADABLE_APP_LIMITED__DeepDRiD_265_l2.jpg,image/jpeg,DeepDRiD v1.1,validation,0,UNGRADABLE,6,8,6,LIMITED quality abstention,"Exact pinned app sample; escalation blocked"
+stills/06_UNGRADABLE_APP_RETAKE__DeepDRiD_431_l2.jpg,image/jpeg,DeepDRiD v1.1,validation,0,UNGRADABLE,1,8,10,RETAKE recommended,"Exact pinned app sample; escalation blocked"
+stills/07_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_294_l2.jpg,image/jpeg,DeepDRiD v1.1,validation,0,UNGRADABLE,1,8,10,Outside exact-hash app scope,"Visual reference only"
+stills/08_UNGRADABLE_REFERENCE_ONLY__DeepDRiD_296_r1.jpg,image/jpeg,DeepDRiD v1.1,validation,0,UNGRADABLE,8,6,6,Outside exact-hash app scope,"Visual reference only"
+videos/VIDEO_01_COLOR_FUNDUS_MOVING__PedCam.mp4,video/mp4,Xincheng Yao Figshare media,external,,,,,,Browser telemetry preview only,"Genuine moving color-fundus video; no still-model submission"
+videos/VIDEO_02_NO_RAW_FUNDUS_TABLETOP_WORKFLOW__Kestrel3100m.mp4,video/mp4,Zhang et al. Additional file 1,external,,,,,,Expected NO_FIELD preview,"Conventional camera workflow B-roll; no raw color retinal feed"
