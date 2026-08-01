@@ -102,6 +102,15 @@ below remains available without those base artifacts.
 Open <http://127.0.0.1:8000>. The launcher keeps both services on loopback and
 stops the model process it created when you press `Ctrl-C`.
 
+On the 24-GB Mac profile, the launcher asks `llama-server` to unload Gemma and
+its KV cache after five idle seconds. This leaves unified-memory headroom for
+browser video decoding; the next quality-passing candidate automatically
+reloads Gemma before review-priority inference. Set
+`RETINA_READY_SLEEP_IDLE_SECONDS=0` only if the machine has enough headroom to
+keep the 26B model resident. The final launcher also explicitly enables the
+experimental video-candidate JPEG handoff; ordinary uploads remain inside the
+fixed DeepDRiD safety boundary.
+
 The live llama.cpp adapter uses constrained free generation and is explicitly
 labeled uncalibrated. It accepts only the two pinned quality-passing DeepDRiD
 examples and fails closed on every identity, checksum, schema, or scope error.

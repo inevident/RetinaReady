@@ -49,11 +49,14 @@ color retinal field cannot accumulate the five passing frames required for a
 candidate. Duplicate or stalled media timestamps are not counted as stable
 frames.
 
-This real-recording path deliberately stops at “candidate frame.” Video bytes
-and canvas frames never become the still-image `state.file`, never call
-`POST /api/workflow`, and never enter either trained model. An operator must
-export a separate still from the fundus camera before the existing
-quality-first harness can run. The app includes two CC BY 4.0 QA inputs under
+This real-recording path now freezes exactly one stable decoded frame as a
+local JPEG and hands that still to `POST /api/workflow`; raw video bytes never
+leave the browser or enter either trained model. The final launcher enables
+this route with `RETINA_ENABLE_VIDEO_CANDIDATE_WORKFLOW=1`. That opt-in relaxes
+the fixed DeepDRiD input-hash boundary only for the explicitly tagged video
+candidate while retaining artifact checks, the quality-first gate, and
+fail-closed policy. It is an experimental OOD demonstration—not validation of
+either model on device-video frames. The app includes two CC BY 4.0 QA inputs under
 `data/external/fundus-video/`: a genuine moving PedCam color-fundus video for a
 positive loader test and a Kestrel 3100m tabletop-workflow recording for the
 fail-closed no-field test. See that folder's `ATTRIBUTION.md` for provenance

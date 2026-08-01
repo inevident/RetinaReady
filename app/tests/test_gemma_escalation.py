@@ -1,11 +1,15 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from gemma_escalation import (
     ESCALATION_DISCLAIMER,
@@ -100,6 +104,7 @@ class GemmaEscalationTests(unittest.TestCase):
             if url.endswith("/v1/chat/completions"):
                 body = json.loads(request.data.decode("utf-8"))
                 self.assertEqual(body["model"], self.model_id)
+                self.assertEqual(body["lora"], [{"id": 0, "scale": 1.0}])
                 self.assertEqual(
                     body["response_format"],
                     {
@@ -204,6 +209,112 @@ class GemmaEscalationTests(unittest.TestCase):
         self.assertFalse(status["network_required"])
         self.assertTrue(status["loopback_http_required"])
 
+    def test_health_does_not_wake_an_already_verified_sleeping_server(self) -> None:
+        adapter = self.adapter()
+        with patch(
+            "gemma_escalation._open_loopback",
+            side_effect=self.server(self.target("ROUTINE")),
+        ):
+            first = adapter.runtime_status()
+        self.assertTrue(first["release_enabled"])
+
+        calls: list[str] = []
+
+        def sleeping_server(request, timeout: float):
+            del timeout
+            calls.append(request.full_url)
+            if request.full_url.endswith("/props"):
+                return FakeResponse(
+                    {"is_sleeping": True, "model_alias": self.model_id}
+                )
+            raise AssertionError(f"sleeping health check woke: {request.full_url}")
+
+        with patch(
+            "gemma_escalation._open_loopback",
+            side_effect=sleeping_server,
+        ):
+            second = adapter.runtime_status()
+
+        self.assertTrue(second["release_enabled"])
+        self.assertEqual(calls, ["http://127.0.0.1:8082/props"])
+
+    def test_runtime_identity_retries_one_transient_wake_http_error(self) -> None:
+        adapter = self.adapter()
+        health_attempts = 0
+
+        def waking_server(request, timeout: float):
+            nonlocal health_attempts
+            del timeout
+            if request.full_url.endswith("/health"):
+                health_attempts += 1
+                if health_attempts == 1:
+                    raise HTTPError(
+                        request.full_url,
+                        503,
+                        "model allocation is waking",
+                        None,
+                        None,
+                    )
+            return self.server(self.target("ROUTINE"))(request, 5)
+
+        with patch(
+            "gemma_escalation._open_loopback",
+            side_effect=waking_server,
+        ), patch("gemma_escalation.time.sleep") as sleep:
+            status = adapter.runtime_status()
+
+        self.assertTrue(status["release_enabled"])
+        self.assertEqual(health_attempts, 2)
+        sleep.assert_called_once()
+
+    def test_health_and_assessment_are_serialized_for_single_slot_runtime(self) -> None:
+        adapter = self.adapter()
+        start = threading.Barrier(3)
+        counter_lock = threading.Lock()
+        active = 0
+        max_active = 0
+
+        def verify_runtime(_adapter: LocalGemmaEscalationAdapter) -> None:
+            nonlocal active, max_active
+            with counter_lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.05)
+            with counter_lock:
+                active -= 1
+
+        def status_after_barrier() -> dict[str, object]:
+            start.wait()
+            return adapter.runtime_status()
+
+        def assessment_after_barrier():
+            start.wait()
+            return adapter._assess_sync(self.image, "image/jpeg")
+
+        with patch.object(
+            LocalGemmaEscalationAdapter,
+            "_cached_runtime_is_sleeping",
+            return_value=False,
+        ), patch.object(
+            LocalGemmaEscalationAdapter,
+            "_verify_runtime",
+            autospec=True,
+            side_effect=verify_runtime,
+        ), patch.object(
+            LocalGemmaEscalationAdapter,
+            "_request_assessment",
+            return_value=self.target("ROUTINE"),
+        ), ThreadPoolExecutor(max_workers=2) as executor:
+            status_future = executor.submit(status_after_barrier)
+            assessment_future = executor.submit(assessment_after_barrier)
+            start.wait()
+            status = status_future.result(timeout=2)
+            assessment = assessment_future.result(timeout=2)
+
+        self.assertEqual(max_active, 1)
+        self.assertTrue(status["release_enabled"])
+        self.assertEqual(assessment.decision, EscalationDecision.ROUTINE_REVIEW)
+
     def test_maps_only_priority_and_routine_to_review_labels(self) -> None:
         for internal, expected in (
             ("PRIORITY", EscalationDecision.PRIORITY_REVIEW),
@@ -252,6 +363,58 @@ class GemmaEscalationTests(unittest.TestCase):
             self.assertEqual(result.decision, EscalationDecision.UNCERTAIN)
             self.assertFalse(result.release_allowed)
             self.assertFalse(result.executed)
+
+    def test_video_candidate_bypasses_only_input_hash_and_still_verifies_runtime(self) -> None:
+        adapter = self.adapter()
+        candidate = b"jpeg-extracted-from-video"
+        with patch(
+            "gemma_escalation._open_loopback",
+            side_effect=self.server(self.target("PRIORITY")),
+        ):
+            result = asyncio.run(
+                adapter.assess(
+                    candidate,
+                    filename="capture-candidate.jpg",
+                    content_type="image/jpeg",
+                    allow_experimental_input=True,
+                )
+            )
+
+        self.assertEqual(result.decision, EscalationDecision.PRIORITY_REVIEW)
+        self.assertTrue(result.executed)
+        self.assertTrue(result.model_available)
+        self.assertTrue(result.release_allowed)
+
+        self.lora_path.write_bytes(b"tampered-after-start")
+        with patch("gemma_escalation._open_loopback") as mocked:
+            tampered = asyncio.run(
+                adapter.assess(
+                    candidate,
+                    filename="capture-candidate.jpg",
+                    content_type="image/jpeg",
+                    allow_experimental_input=True,
+                )
+            )
+        mocked.assert_not_called()
+        self.assertEqual(tampered.decision, EscalationDecision.UNCERTAIN)
+        self.assertEqual(tampered.reason, EscalationReason.ARTIFACT_UNAVAILABLE)
+        self.assertFalse(tampered.release_allowed)
+
+    def test_video_candidate_does_not_relax_gemma_content_type(self) -> None:
+        adapter = self.adapter()
+        with patch("gemma_escalation._open_loopback") as mocked:
+            result = asyncio.run(
+                adapter.assess(
+                    b"video-derived-png",
+                    filename="capture-candidate.png",
+                    content_type="image/png",
+                    allow_experimental_input=True,
+                )
+            )
+        mocked.assert_not_called()
+        self.assertEqual(result.decision, EscalationDecision.UNCERTAIN)
+        self.assertFalse(result.executed)
+        self.assertFalse(result.release_allowed)
 
     def test_combined_non_ready_quality_gate_never_reaches_gemma_server(self) -> None:
         class RetakeQuality:
@@ -347,8 +510,9 @@ class GemmaEscalationTests(unittest.TestCase):
         adapter = self.adapter()
         with patch(
             "gemma_escalation._open_loopback", side_effect=OSError("offline")
-        ):
+        ) as mocked:
             result = self.assess(adapter)
+        self.assertEqual(mocked.call_count, 2)
         self.assertEqual(result.decision, EscalationDecision.UNCERTAIN)
         self.assertEqual(result.reason, EscalationReason.ADAPTER_ERROR)
         self.assertFalse(result.release_allowed)
@@ -356,10 +520,32 @@ class GemmaEscalationTests(unittest.TestCase):
         with patch(
             "gemma_escalation._open_loopback",
             return_value=FakeResponse({"status": "loading"}),
-        ):
+        ) as mocked:
             result = self.assess(adapter)
+        self.assertEqual(mocked.call_count, 1)
         self.assertEqual(result.decision, EscalationDecision.UNCERTAIN)
         self.assertEqual(result.reason, EscalationReason.ARTIFACT_UNAVAILABLE)
+        self.assertFalse(result.release_allowed)
+
+    def test_generation_transport_failure_is_never_retried(self) -> None:
+        generation_calls = 0
+
+        def server(request, timeout: float):
+            nonlocal generation_calls
+            if request.full_url.endswith("/v1/chat/completions"):
+                generation_calls += 1
+                raise HTTPError(request.full_url, 503, "inference failed", None, None)
+            return self.server(self.target("ROUTINE"))(request, timeout)
+
+        adapter = self.adapter()
+        with patch("gemma_escalation._open_loopback", side_effect=server):
+            result = self.assess(adapter)
+
+        self.assertEqual(generation_calls, 1)
+        self.assertEqual(result.decision, EscalationDecision.UNCERTAIN)
+        self.assertEqual(result.reason, EscalationReason.ADAPTER_ERROR)
+        self.assertTrue(result.executed)
+        self.assertTrue(result.model_available)
         self.assertFalse(result.release_allowed)
 
     def test_strict_schema_rejects_prose_fences_unknown_decisions_and_extra_keys(self) -> None:

@@ -126,11 +126,19 @@
             <div class="guidance-viewport" id="guidanceViewport">
               <video
                 id="guidanceVideo"
+                class="guidance-video-source"
                 muted
                 playsinline
-                preload="metadata"
-                hidden
+                preload="auto"
+                aria-hidden="true"
               ></video>
+              <audio
+                id="captureReadyChime"
+                src="/assets/capture-ready-chime.mp3"
+                preload="auto"
+                aria-hidden="true"
+                hidden
+              ></audio>
               <canvas
                 id="guidanceCanvas"
                 width="720"

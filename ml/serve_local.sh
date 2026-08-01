@@ -53,6 +53,12 @@ BATCH_SIZE="${RETINA_READY_BATCH_SIZE:-512}"
 UBATCH_SIZE="${RETINA_READY_UBATCH_SIZE:-512}"
 MTMD_BATCH_MAX_TOKENS="${RETINA_READY_MTMD_BATCH_MAX_TOKENS:-512}"
 GPU_LAYERS="${RETINA_READY_GPU_LAYERS:-999}"
+SLEEP_IDLE_SECONDS="${RETINA_READY_SLEEP_IDLE_SECONDS:-0}"
+if [[ ! "${SLEEP_IDLE_SECONDS}" =~ ^[0-9]+$ ]]; then
+  echo "RETINA_READY_SLEEP_IDLE_SECONDS must be a non-negative integer, got: ${SLEEP_IDLE_SECONDS}" >&2
+  exit 1
+fi
+SLEEP_IDLE_SECONDS="$((10#${SLEEP_IDLE_SECONDS}))"
 if [[ -n "${RETINA_READY_MMPROJ_OFFLOAD:-}" ]]; then
   MMPROJ_OFFLOAD="${RETINA_READY_MMPROJ_OFFLOAD}"
 elif [[ "$(basename "${MODEL_FILE}")" == "${TUNED_Q4_0_NAME}" ]]; then
@@ -91,7 +97,7 @@ if [[ -n "${LORA_FILE}" ]]; then
 else
   echo "RetinaReady LoRA: disabled (official QAT fallback)"
 fi
-echo "24-GB Mac safety profile: context=${CTX_SIZE}, batch=${BATCH_SIZE}, ubatch=${UBATCH_SIZE}, vision batch=${MTMD_BATCH_MAX_TOKENS}, parallel=1, GPU layers=${GPU_LAYERS}, projector offload=${MMPROJ_OFFLOAD}."
+echo "24-GB Mac safety profile: context=${CTX_SIZE}, batch=${BATCH_SIZE}, ubatch=${UBATCH_SIZE}, vision batch=${MTMD_BATCH_MAX_TOKENS}, parallel=1, GPU layers=${GPU_LAYERS}, projector offload=${MMPROJ_OFFLOAD}, idle sleep=${SLEEP_IDLE_SECONDS}s."
 
 server_args=(
   --model "${MODEL_FILE}"
@@ -111,6 +117,9 @@ server_args=(
   --reasoning-budget 0
   --jinja
 )
+if (( SLEEP_IDLE_SECONDS > 0 )); then
+  server_args+=(--sleep-idle-seconds "${SLEEP_IDLE_SECONDS}")
+fi
 if [[ "${MMPROJ_OFFLOAD}" == "off" ]]; then
   server_args+=(--no-mmproj-offload)
 elif [[ "${MMPROJ_OFFLOAD}" != "on" ]]; then

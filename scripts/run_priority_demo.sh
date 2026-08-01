@@ -9,6 +9,12 @@ MODEL_PORT="${RETINA_PRIORITY_PORT:-8082}"
 APP_HOST="${RETINA_PRIORITY_APP_HOST:-127.0.0.1}"
 APP_PORT="${RETINA_PRIORITY_APP_PORT:-8000}"
 MODEL_ID="${RETINA_PRIORITY_MODEL_ALIAS:-retinapriority-gemma4-26b}"
+MODEL_SLEEP_IDLE_SECONDS="${RETINA_READY_SLEEP_IDLE_SECONDS:-5}"
+if [[ ! "${MODEL_SLEEP_IDLE_SECONDS}" =~ ^[0-9]+$ ]]; then
+  echo "RETINA_READY_SLEEP_IDLE_SECONDS must be a non-negative integer, got: ${MODEL_SLEEP_IDLE_SECONDS}" >&2
+  exit 1
+fi
+MODEL_SLEEP_IDLE_SECONDS="$((10#${MODEL_SLEEP_IDLE_SECONDS}))"
 
 BASE_DIR="${PROJECT_ROOT}/models/retinaready-gemma4-26b-tuned"
 PRIORITY_DIR="${PROJECT_ROOT}/models/retinapriority-gemma4-26b"
@@ -107,6 +113,7 @@ else
   RETINA_READY_HOST="${MODEL_HOST}" \
   RETINA_READY_PORT="${MODEL_PORT}" \
   RETINA_READY_CORS_ORIGINS="http://${APP_HOST}:${APP_PORT}" \
+  RETINA_READY_SLEEP_IDLE_SECONDS="${MODEL_SLEEP_IDLE_SECONDS}" \
     "${PROJECT_ROOT}/ml/serve_local.sh" &
   model_launcher_pid=$!
   python3 "${PROJECT_ROOT}/ml/wait_for_server.py" \
@@ -121,6 +128,7 @@ RETINA_ANALYZER=specialist \
 RETINA_SPECIALIST_DIR="${SPECIALIST_DIR}" \
 RETINA_SPECIALIST_DEVICE=cpu \
 RETINA_ENABLE_ESCALATION_RESEARCH_DEMO=1 \
+RETINA_ENABLE_VIDEO_CANDIDATE_WORKFLOW=1 \
 RETINA_ESCALATION_ENGINE=gemma \
 RETINA_ESCALATION_GEMMA_API_URL="http://${MODEL_HOST}:${MODEL_PORT}" \
 RETINA_ESCALATION_GEMMA_MODEL_ID="${MODEL_ID}" \
@@ -130,8 +138,25 @@ RETINA_ESCALATION_GEMMA_TIMEOUT_SECONDS="${RETINA_ESCALATION_GEMMA_TIMEOUT_SECON
 python3 -m uvicorn main:app --host "${APP_HOST}" --port "${APP_PORT}" &
 app_pid=$!
 
+app_is_ready() {
+  curl -fsS --max-time 15 "http://${APP_HOST}:${APP_PORT}/api/health" |
+    python3 -c '
+import json
+import sys
+
+health = json.load(sys.stdin)
+ready = (
+    health.get("status") == "ready"
+    and health.get("video_candidate_workflow_enabled") is True
+    and isinstance(health.get("escalation"), dict)
+    and health["escalation"].get("release_enabled") is True
+)
+raise SystemExit(0 if ready else 1)
+'
+}
+
 for _ in {1..120}; do
-  if curl -fsS "http://${APP_HOST}:${APP_PORT}/api/health" >/dev/null 2>&1; then
+  if app_is_ready >/dev/null 2>&1; then
     break
   fi
   if ! kill -0 "${app_pid}" 2>/dev/null; then
@@ -140,12 +165,19 @@ for _ in {1..120}; do
   fi
   sleep 0.25
 done
-if ! curl -fsS "http://${APP_HOST}:${APP_PORT}/api/health" >/dev/null 2>&1; then
-  echo "RetinaPriority app did not become healthy in time." >&2
+if ! app_is_ready >/dev/null 2>&1; then
+  echo "RetinaPriority app and exact local adapter did not become healthy in time." >&2
   exit 1
 fi
 
 echo "RetinaReady + RetinaPriority is available at http://${APP_HOST}:${APP_PORT}"
 echo "Quality runs first; only READY images reach the local Gemma escalation LoRA."
+if [[ -z "${model_launcher_pid}" ]]; then
+  echo "A verified existing Gemma server was reused; its idle-sleep policy was not changed by this launcher."
+elif (( MODEL_SLEEP_IDLE_SECONDS > 0 )); then
+  echo "Gemma releases its model allocation after ${MODEL_SLEEP_IDLE_SECONDS}s idle to leave headroom for browser video."
+else
+  echo "Gemma idle sleeping is disabled by RETINA_READY_SLEEP_IDLE_SECONDS=0."
+fi
 echo "Press Ctrl-C to stop the processes started by this launcher."
 wait "${app_pid}"

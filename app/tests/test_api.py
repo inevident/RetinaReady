@@ -79,6 +79,8 @@ class ApiTests(unittest.TestCase):
         self.assertIn("not a clinical or", response.text)
         self.assertIn('id="guidanceCanvas"', response.text)
         self.assertIn('id="guidanceVideo"', response.text)
+        self.assertIn('id="captureReadyChime"', response.text)
+        self.assertIn('/assets/capture-ready-chime.mp3', response.text)
         self.assertIn('id="loadVideoButton"', response.text)
         self.assertIn('id="videoInput"', response.text)
         self.assertIn("Open camera recording", response.text)
@@ -91,9 +93,31 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(app_javascript.status_code, 200)
         self.assertIn("Retrospective DeepDRiD replay", app_javascript.text)
         self.assertIn("startVideoGuidance", app_javascript.text)
+        self.assertIn("evaluation.captureTriggered", app_javascript.text)
+        self.assertIn("playCaptureReadyChime", app_javascript.text)
         self.assertIn(
-            "never sent to the still-image quality or review-priority models",
+            "Raw video stays in this browser",
             app_javascript.text,
+        )
+        self.assertIn("captureVideoCandidateFrame", app_javascript.text)
+        self.assertIn('setFile(candidateFile, "", "video-candidate")', app_javascript.text)
+        self.assertIn('headers["X-Input-Origin"]', app_javascript.text)
+        self.assertIn("requestVideoFrameCallback", app_javascript.text)
+        self.assertIn("context.createBufferSource", app_javascript.text)
+        self.assertIn("source.start(0)", app_javascript.text)
+        self.assertEqual(
+            app_javascript.text.count('context.state !== "running"'),
+            2,
+        )
+
+    def test_capture_ready_chime_is_complete_and_served_locally(self) -> None:
+        response = self.client.get("/assets/capture-ready-chime.mp3")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "audio/mpeg")
+        self.assertEqual(len(response.content), 73603)
+        self.assertEqual(
+            hashlib.sha256(response.content).hexdigest(),
+            "53cb785f6a3b58659bce2b1feafc1e82aacf4009061fea23c81c2e8d269a51d0",
         )
 
     def test_frontend_does_not_claim_an_unsupported_modality_demo(self) -> None:

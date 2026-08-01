@@ -19,6 +19,7 @@ const elements = {
   guidanceViewport: document.querySelector("#guidanceViewport"),
   guidanceCanvas: document.querySelector("#guidanceCanvas"),
   guidanceVideo: document.querySelector("#guidanceVideo"),
+  captureReadyChime: document.querySelector("#captureReadyChime"),
   guidanceSource: document.querySelector("#guidanceSource"),
   guidanceRate: document.querySelector("#guidanceRate"),
   guidanceDisclosure: document.querySelector("#guidanceDisclosure"),
@@ -89,6 +90,7 @@ const state = {
   file: null,
   previewUrl: null,
   scenario: "",
+  inputOrigin: "",
   processing: false,
   useDatasetSamples: false,
   datasetOnly: false,
@@ -110,10 +112,16 @@ const state = {
   guidanceVideoUrl: "",
   guidanceVideoFile: null,
   guidanceLastVideoTime: -1,
+  videoCandidateWorkflowEnabled: false,
 };
+
+let captureReadyChimeAudioContext = null;
+let captureReadyChimeBufferPromise = null;
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 128 * 1024 * 1024;
+const VIDEO_DECODE_TIMEOUT_MS = 30000;
+const WORKFLOW_TIMEOUT_MS = 120000;
 const QUALITY_ATTENTION_LABEL =
   "Model quality attention \u2014 not pathology localization.";
 const ACCEPTED_TYPES = new Set([
@@ -241,7 +249,7 @@ function applyProductMode(mode) {
   resetResult();
 }
 
-function setFile(file, scenario = "") {
+function setFile(file, scenario = "", inputOrigin = "") {
   if (!file) return;
   if (!ACCEPTED_TYPES.has(file.type)) {
     showToast("Choose a JPG, PNG, or WEBP image.");
@@ -255,6 +263,7 @@ function setFile(file, scenario = "") {
   if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
   state.file = file;
   state.scenario = scenario;
+  state.inputOrigin = inputOrigin;
   state.previewUrl = URL.createObjectURL(file);
 
   elements.previewImage.src = state.previewUrl;
@@ -593,14 +602,24 @@ function prepareGuidanceVideo(file) {
     const video = elements.guidanceVideo;
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error("The camera recording took too long to decode."));
-    }, 12000);
+      reject(
+        new Error(
+          "The camera recording could not decode a first frame. Close memory-heavy apps or use the idle-sleep launcher and try again.",
+        ),
+      );
+    }, VIDEO_DECODE_TIMEOUT_MS);
     const cleanup = () => {
       window.clearTimeout(timeout);
-      video.removeEventListener("loadedmetadata", handleLoaded);
+      video.removeEventListener("loadeddata", handleLoaded);
+      video.removeEventListener("canplay", handleLoaded);
       video.removeEventListener("error", handleError);
     };
     const handleLoaded = () => {
+      if (
+        video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        !video.videoWidth ||
+        !video.videoHeight
+      ) return;
       cleanup();
       if (!Number.isFinite(video.duration) || video.duration <= 0) {
         reject(new Error("The camera recording has no playable frames."));
@@ -612,12 +631,53 @@ function prepareGuidanceVideo(file) {
       cleanup();
       reject(new Error("The camera recording could not be decoded locally."));
     };
-    video.addEventListener("loadedmetadata", handleLoaded);
+    video.addEventListener("loadeddata", handleLoaded);
+    video.addEventListener("canplay", handleLoaded);
     video.addEventListener("error", handleError);
     video.muted = true;
     video.playsInline = true;
+    video.preload = "auto";
     video.src = state.guidanceVideoUrl;
     video.load();
+  });
+}
+
+function waitForPresentedVideoFrame(video) {
+  return new Promise((resolve, reject) => {
+    let callbackId = 0;
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(
+        new Error(
+          "The recording loaded, but the browser could not present a decoded frame.",
+        ),
+      );
+    }, VIDEO_DECODE_TIMEOUT_MS);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video.removeEventListener("timeupdate", handleFallbackFrame);
+      if (callbackId && typeof video.cancelVideoFrameCallback === "function") {
+        video.cancelVideoFrameCallback(callbackId);
+      }
+    };
+    const finish = () => {
+      cleanup();
+      resolve();
+    };
+    const handleFallbackFrame = () => {
+      if (
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth &&
+        video.videoHeight &&
+        video.currentTime > 0
+      ) finish();
+    };
+
+    if (typeof video.requestVideoFrameCallback === "function") {
+      callbackId = video.requestVideoFrameCallback(finish);
+    } else {
+      video.addEventListener("timeupdate", handleFallbackFrame);
+    }
   });
 }
 
@@ -648,6 +708,98 @@ function setGuidanceMetric(bar, label, value) {
   const safeValue = Math.max(0, Math.min(100, Math.round(value)));
   bar.style.width = `${safeValue}%`;
   label.textContent = String(safeValue);
+}
+
+function resetCaptureReadyChime() {
+  const chime = elements.captureReadyChime;
+  if (!chime) return;
+  chime.pause();
+  chime.currentTime = 0;
+}
+
+function captureReadyAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!captureReadyChimeAudioContext) {
+    captureReadyChimeAudioContext = new AudioContextClass();
+  }
+  return captureReadyChimeAudioContext;
+}
+
+function decodeCaptureReadyChime(context, encodedAudio) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (handler) => (value) => {
+      if (settled) return;
+      settled = true;
+      handler(value);
+    };
+    const decoded = context.decodeAudioData(
+      encodedAudio,
+      finish(resolve),
+      finish(reject),
+    );
+    if (decoded && typeof decoded.then === "function") {
+      decoded.then(finish(resolve), finish(reject));
+    }
+  });
+}
+
+function loadCaptureReadyChimeBuffer(context) {
+  if (!captureReadyChimeBufferPromise) {
+    const source =
+      elements.captureReadyChime?.currentSrc ||
+      elements.captureReadyChime?.getAttribute("src");
+    captureReadyChimeBufferPromise = fetch(source, { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Capture chime asset unavailable.");
+        return response.arrayBuffer();
+      })
+      .then((encodedAudio) => decodeCaptureReadyChime(context, encodedAudio))
+      .catch((error) => {
+        captureReadyChimeBufferPromise = null;
+        throw error;
+      });
+  }
+  return captureReadyChimeBufferPromise;
+}
+
+function primeCaptureReadyChime() {
+  const context = captureReadyAudioContext();
+  if (!context) return Promise.resolve();
+  const resume =
+    context.state !== "running" ? context.resume() : Promise.resolve();
+  return Promise.allSettled([resume, loadCaptureReadyChimeBuffer(context)]);
+}
+
+function playCaptureReadyChimeFallback() {
+  const chime = elements.captureReadyChime;
+  if (!chime) return;
+  try {
+    chime.pause();
+    chime.currentTime = 0;
+    const playback = chime.play();
+    if (playback && typeof playback.catch === "function") {
+      playback.catch(() => {});
+    }
+  } catch (_error) {
+    // Audio should never interrupt the local capture workflow.
+  }
+}
+
+async function playCaptureReadyChime() {
+  try {
+    const context = captureReadyAudioContext();
+    if (!context) throw new Error("Web Audio is unavailable.");
+    if (context.state !== "running") await context.resume();
+    const buffer = await loadCaptureReadyChimeBuffer(context);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(0);
+  } catch (_error) {
+    playCaptureReadyChimeFallback();
+  }
 }
 
 function renderGuidanceEvaluation(evaluation, phase) {
@@ -705,7 +857,7 @@ function setGuidanceCopy(mode) {
     elements.guidanceSource.textContent = "Prerecorded device video";
     elements.guidanceRate.textContent = "6 Hz technical telemetry";
     elements.guidanceDisclosure.textContent =
-      "Prerecorded clinical fundus-camera input. Frames stay in this browser and are never sent to the still-image quality or review-priority models. This is prototype telemetry, not device or clinical validation.";
+      "Prerecorded fundus-camera input. Raw video stays in this browser. If five consecutive frames pass the prototype gate, one JPEG still is frozen locally and handed to the experimental quality-first workflow. This is not device or clinical validation.";
     return;
   }
   elements.guidanceStage.setAttribute(
@@ -722,14 +874,21 @@ function setGuidanceCopy(mode) {
     "Simulated acquisition using retrospective color fundus imagery. Frame guidance is a local technical prototype, not a clinical or device-validated model output.";
 }
 
-function stopGuidedCapture({ notify = false } = {}) {
-  const stoppedMode = state.guidanceMode;
-  window.cancelAnimationFrame(state.guidanceAnimation);
-  window.clearTimeout(state.guidanceFinishTimer);
+function releaseGuidanceVideoSource() {
   elements.guidanceVideo.pause();
   elements.guidanceVideo.removeAttribute("src");
   elements.guidanceVideo.load();
   if (state.guidanceVideoUrl) URL.revokeObjectURL(state.guidanceVideoUrl);
+  state.guidanceVideoUrl = "";
+  state.guidanceVideoFile = null;
+  state.guidanceLastVideoTime = -1;
+}
+
+function stopGuidedCapture({ notify = false } = {}) {
+  const stoppedMode = state.guidanceMode;
+  window.cancelAnimationFrame(state.guidanceAnimation);
+  window.clearTimeout(state.guidanceFinishTimer);
+  releaseGuidanceVideoSource();
   state.guidanceAnimation = 0;
   state.guidanceFinishTimer = 0;
   state.guidanceRunning = false;
@@ -737,9 +896,6 @@ function stopGuidedCapture({ notify = false } = {}) {
   state.guidancePreviousGray = null;
   state.guidanceController = null;
   state.guidanceMode = "";
-  state.guidanceVideoUrl = "";
-  state.guidanceVideoFile = null;
-  state.guidanceLastVideoTime = -1;
   state.guidanceOriginalFile = null;
   state.guidanceSourceImage = null;
   restoreCaptureControls();
@@ -791,6 +947,7 @@ function replayGuidanceAnimationFrame(timestamp) {
     state.guidanceLastAnalysisAt = timestamp;
     const evaluation = state.guidanceController.update(analyzed.metrics);
     renderGuidanceEvaluation(evaluation, transform.phase);
+    if (evaluation.captureTriggered) playCaptureReadyChime();
     if (evaluation.captureReady && elapsed >= 9000) {
       finishReplayCapture();
       return;
@@ -799,7 +956,52 @@ function replayGuidanceAnimationFrame(timestamp) {
   state.guidanceAnimation = window.requestAnimationFrame(replayGuidanceAnimationFrame);
 }
 
-function finishVideoPreview({ candidateFound = false } = {}) {
+function captureVideoCandidateFrame() {
+  const video = elements.guidanceVideo;
+  if (!video.videoWidth || !video.videoHeight) {
+    return Promise.reject(new Error("The candidate frame has no decoded pixels."));
+  }
+
+  const maxDimension = 2048;
+  const scale = Math.min(
+    1,
+    maxDimension / Math.max(video.videoWidth, video.videoHeight),
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return Promise.reject(new Error("The browser could not create a still frame."));
+  }
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const originalName = state.guidanceVideoFile?.name || "fundus-recording";
+  const safeStem = originalName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-z0-9._-]+/gi, "-")
+    .slice(0, 120);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("The candidate frame could not be encoded."));
+          return;
+        }
+        resolve(
+          new File([blob], `${safeStem}-candidate.jpg`, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          }),
+        );
+      },
+      "image/jpeg",
+      0.94,
+    );
+  });
+}
+
+async function finishVideoPreview({ candidateFound = false } = {}) {
   if (!state.guidanceRunning || state.guidanceCaptured) return;
   state.guidanceCaptured = true;
   window.cancelAnimationFrame(state.guidanceAnimation);
@@ -809,9 +1011,42 @@ function finishVideoPreview({ candidateFound = false } = {}) {
     ? "Candidate frame"
     : "Preview complete";
   elements.guidanceInstruction.textContent = candidateFound
-    ? "Candidate frame found · Export a still from the fundus camera"
+    ? "Candidate frame found · Freezing local JPEG"
     : "Recording ended · No verified still was submitted";
-  if (candidateFound) elements.guidanceLockBar.style.width = "100%";
+  if (!candidateFound) return;
+
+  elements.guidanceLockBar.style.width = "100%";
+  if (!state.videoCandidateWorkflowEnabled) {
+    elements.guidanceInstruction.textContent =
+      "Candidate frame found · Experimental still workflow is disabled";
+    showToast("Restart with the final demo launcher to enable candidate analysis.");
+    return;
+  }
+
+  try {
+    const candidateFile = await captureVideoCandidateFrame();
+    if (!state.guidanceCaptured || state.guidanceMode !== "video") return;
+    elements.guidanceInstruction.textContent =
+      "Best frame captured · Running quality + review priority";
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    if (!state.guidanceCaptured || state.guidanceMode !== "video") return;
+
+    state.guidanceOriginalFile = candidateFile;
+    state.guidanceRunning = false;
+    state.guidanceMode = "";
+    state.guidancePreviousGray = null;
+    state.guidanceController = null;
+    releaseGuidanceVideoSource();
+    restoreCaptureControls();
+    setFile(candidateFile, "", "video-candidate");
+    await analyzeCurrentFile();
+  } catch (error) {
+    if (!state.guidanceCaptured || state.guidanceMode !== "video") return;
+    elements.guidancePhase.textContent = "Frame export failed";
+    elements.guidanceInstruction.textContent =
+      "Candidate could not be frozen · No image was submitted";
+    showToast(error.message || "The candidate frame could not be exported.");
+  }
 }
 
 function videoGuidanceAnimationFrame(timestamp) {
@@ -834,14 +1069,15 @@ function videoGuidanceAnimationFrame(timestamp) {
       state.guidanceLastVideoTime = video.currentTime;
       const evaluation = state.guidanceController.update(analyzed.metrics);
       renderGuidanceEvaluation(evaluation, "Device video");
+      if (evaluation.captureTriggered) playCaptureReadyChime();
       if (evaluation.captureReady) {
-        finishVideoPreview({ candidateFound: true });
+        void finishVideoPreview({ candidateFound: true });
         return;
       }
     }
   }
   if (video.ended) {
-    finishVideoPreview();
+    void finishVideoPreview();
     return;
   }
   state.guidanceAnimation = window.requestAnimationFrame(videoGuidanceAnimationFrame);
@@ -854,6 +1090,8 @@ async function startGuidedCapture() {
     return;
   }
   try {
+    await primeCaptureReadyChime();
+    resetCaptureReadyChime();
     applyProductMode("COMBINED");
     const file = await loadDatasetSample("READY");
     const image = await loadImage(file);
@@ -905,6 +1143,8 @@ async function startVideoGuidance(file) {
     return;
   }
   try {
+    await primeCaptureReadyChime();
+    resetCaptureReadyChime();
     applyProductMode("COMBINED");
     const [referenceFile] = await Promise.all([
       loadDatasetSample("READY"),
@@ -948,7 +1188,11 @@ async function startVideoGuidance(file) {
     setGuidanceCopy("video");
 
     elements.guidanceVideo.currentTime = 0;
-    await elements.guidanceVideo.play();
+    elements.guidancePhase.textContent = "Decoding first frame";
+    const firstFrame = waitForPresentedVideoFrame(elements.guidanceVideo);
+    await Promise.all([elements.guidanceVideo.play(), firstFrame]);
+    drawVideoGuidanceFrame();
+    elements.guidancePhase.textContent = "Input check";
     state.guidanceAnimation = window.requestAnimationFrame(videoGuidanceAnimationFrame);
   } catch (error) {
     stopGuidedCapture();
@@ -958,7 +1202,10 @@ async function startVideoGuidance(file) {
 
 elements.startGuidanceButton.addEventListener("click", startGuidedCapture);
 elements.loadVideoButton.addEventListener("click", () => {
-  if (!state.processing && !state.guidanceRunning) elements.videoInput.click();
+  if (!state.processing && !state.guidanceRunning) {
+    primeCaptureReadyChime();
+    elements.videoInput.click();
+  }
 });
 elements.videoInput.addEventListener("change", () => {
   const file = elements.videoInput.files?.[0];
@@ -1230,9 +1477,13 @@ async function analyzeCurrentFile() {
       "X-Product-Mode": state.productMode,
     };
     if (state.scenario) headers["X-Demo-Scenario"] = state.scenario;
+    if (state.inputOrigin) headers["X-Input-Origin"] = state.inputOrigin;
 
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 35000);
+    const timeout = window.setTimeout(
+      () => controller.abort(),
+      WORKFLOW_TIMEOUT_MS,
+    );
     const response = await fetch("/api/workflow", {
       method: "POST",
       headers,
@@ -1283,6 +1534,8 @@ fetch("/api/health")
   .then((health) => {
     const isDemo = health.mode === "demo";
     state.runtimeMode = health.mode;
+    state.videoCandidateWorkflowEnabled =
+      health.video_candidate_workflow_enabled === true;
     const isReady = health.status === "ready";
     state.useDatasetSamples = !isDemo && Boolean(health.dataset_samples_available);
     state.sampleRowAvailable = isDemo || state.useDatasetSamples;

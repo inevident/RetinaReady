@@ -100,6 +100,7 @@ class Analyzer(Protocol):
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]: ...
 
 
@@ -118,7 +119,9 @@ class DemoAnalyzer:
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]:
+        del allow_experimental_input
         return analyze_demo(
             image_bytes,
             filename=filename,
@@ -508,8 +511,9 @@ class LocalOpenAIAnalyzer:
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]:
-        del filename, scenario
+        del filename, scenario, allow_experimental_input
         return await asyncio.to_thread(self._request, image_bytes, content_type)
 
 
@@ -632,8 +636,9 @@ class HybridLocalAnalyzer:
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]:
-        del filename, scenario
+        del filename, scenario, allow_experimental_input
         try:
             assessment = await asyncio.to_thread(self.specialist.assess, image_bytes)
         except (ValueError, OSError):
@@ -906,6 +911,7 @@ class SpecialistLocalAnalyzer:
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]:
         del filename, scenario
         if content_type not in {"image/jpeg", "image/png", "image/webp"}:
@@ -913,7 +919,8 @@ class SpecialistLocalAnalyzer:
         if not self._bundle_is_verified():
             return self._limited(unavailable=True)
         if (
-            self.input_allowlist is not None
+            not allow_experimental_input
+            and self.input_allowlist is not None
             and hashlib.sha256(image_bytes).hexdigest() not in self.input_allowlist
         ):
             return self._limited(

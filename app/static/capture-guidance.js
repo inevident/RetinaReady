@@ -230,6 +230,7 @@
               );
 
         const captureReady = stableFrames >= requiredStableFrames;
+        const captureTriggered = stableFrames === requiredStableFrames;
         return {
           scores,
           instruction: captureReady
@@ -243,6 +244,7 @@
           stableFrames,
           requiredStableFrames,
           captureReady,
+          captureTriggered,
         };
       },
       reset() {

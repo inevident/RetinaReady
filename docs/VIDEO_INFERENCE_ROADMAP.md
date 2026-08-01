@@ -8,9 +8,10 @@ The browser now has two intentionally different acquisition demonstrations:
    can hand the untouched pinned final still to the verified quality-first
    workflow.
 2. **Open camera recording** decodes a prerecorded clinical-device MP4/WEBM/MOV
-   locally and runs only lightweight frame telemetry. It can freeze on a
-   candidate, but it never creates an image upload and never calls either
-   trained model.
+   locally and runs only lightweight frame telemetry. On five stable frames it
+   freezes one local JPEG and, only under the final launcher's explicit
+   experimental opt-in, sends that still through the quality-first workflow.
+   Raw video bytes never enter either trained model.
 
 The second path is tested with two openly licensed recordings. Xincheng Yao's
 [moving color fundus video](https://opticapublishing.figshare.com/articles/media/Ultra-wide_field_video_fundus_photography/10728089)
@@ -186,13 +187,14 @@ In particular:
 - `ROUTINE_REVIEW` never means “normal” or “healthy.”
 - `PRIORITY_REVIEW` is a non-diagnostic queue suggestion for clinician review.
 - A preview-quality indicator is not a substitute for the existing still gate.
-- Prerecorded device-video frames never enter this handoff at all; the operator
-  must explicitly export and select a separate still.
+- Prerecorded device video enters this handoff only as one browser-frozen JPEG,
+  tagged for the explicitly enabled experimental candidate route. Raw video is
+  never submitted.
 
 The quality specialist's measured local latency of roughly 123–153 ms is
-compatible with a 4–6 Hz still-quality loop, but the locked dataset-only input
-scope means the first demo should preserve it as the final capture gate, not
-pretend it was validated on synthetic/video frames.
+compatible with a 4–6 Hz still-quality loop. The candidate opt-in deliberately
+expands beyond its fixed dataset hashes for this one OOD demo path, so neither
+its decision nor any downstream priority result is validation on video frames.
 
 ## Minimum acceptance criteria
 

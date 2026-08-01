@@ -72,22 +72,33 @@ assert.equal(guidance.chooseInstruction(
   reference,
 ).code, "NO_FIELD");
 
-const controller = guidance.createController(reference, {
-  requiredStableFrames: 4,
-});
+const controller = guidance.createController(reference);
 let result;
-for (let frame = 0; frame < 4; frame += 1) {
+for (let frame = 0; frame < 5; frame += 1) {
   result = controller.update(centered);
+  assert.equal(result.captureTriggered, frame === 4);
 }
 assert.equal(result.captureReady, true);
 assert.equal(result.instruction.code, "CAPTURE");
-assert.equal(result.stableFrames, 4);
+assert.equal(result.stableFrames, 5);
+assert.equal(result.requiredStableFrames, 5);
+
+result = controller.update(centered);
+assert.equal(result.captureReady, true);
+assert.equal(result.captureTriggered, false);
 
 controller.reset();
 result = controller.update(offCenter);
 assert.equal(result.captureReady, false);
+assert.equal(result.captureTriggered, false);
 assert.equal(result.stableFrames, 0);
 assert.equal(result.instruction.code, "CENTER");
+
+controller.reset();
+for (let frame = 0; frame < 5; frame += 1) {
+  result = controller.update(centered);
+  assert.equal(result.captureTriggered, frame === 4);
+}
 
 for (const outOfDomainFrame of [noField, warmFullFrame]) {
   controller.reset();
@@ -95,6 +106,7 @@ for (const outOfDomainFrame of [noField, warmFullFrame]) {
     result = controller.update(outOfDomainFrame);
   }
   assert.equal(result.captureReady, false);
+  assert.equal(result.captureTriggered, false);
   assert.equal(result.stableFrames, 0);
   assert.equal(result.instruction.code, "NO_FIELD");
 }

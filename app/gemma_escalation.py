@@ -17,6 +17,8 @@ import json
 import math
 import os
 from pathlib import Path
+import threading
+import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -87,6 +89,9 @@ GEMMA_ESCALATION_MODEL_LABEL = (
 )
 RESEARCH_DEMO_OPT_IN = "RETINA_ENABLE_ESCALATION_RESEARCH_DEMO"
 MAX_RUNTIME_JSON_BYTES = 1024 * 1024
+RUNTIME_VERIFY_ATTEMPTS = 2
+RUNTIME_VERIFY_RETRY_SECONDS = 0.15
+RUNTIME_ADAPTER_TIMEOUT_SECONDS = 10.0
 
 # 146_l2 is a ROUTINE training-split calibration/demo example, not held-out
 # evidence. 296_l2 remains the READY-keyed PRIORITY validation example.
@@ -164,6 +169,18 @@ class LocalGemmaEscalationAdapter:
         default=GEMMA_ESCALATION_DEMO_IMAGE_SHA256
     )
     model_label: str = GEMMA_ESCALATION_MODEL_LABEL
+    _runtime_identity_verified: bool = field(
+        default=False,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _runtime_lock: Any = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         parsed = urlparse(self.api_url)
@@ -298,11 +315,7 @@ class LocalGemmaEscalationAdapter:
                 model_available=output_request,
             ) from error
 
-    def _verify_runtime(self) -> None:
-        # Re-check the opt-in for each health check and release attempt so a
-        # process cannot continue releasing after the operator revokes it.
-        self._validate_opt_in()
-        self._verify_lora_file()
+    def _verify_runtime_once(self) -> None:
         headers = self._headers()
         health = self._fetch_json(
             Request(_runtime_url(self.api_url, "health"), headers=headers),
@@ -338,7 +351,11 @@ class LocalGemmaEscalationAdapter:
 
         adapters = self._fetch_json(
             Request(_runtime_url(self.api_url, "lora-adapters"), headers=headers),
-            timeout=min(3.0, self.timeout_seconds),
+            # This identity endpoint restores an idle llama.cpp allocation on
+            # the current server build. Cold wake regularly takes just over
+            # three seconds on a 24-GB Mac, so do not use the short metadata
+            # timeout here.
+            timeout=min(RUNTIME_ADAPTER_TIMEOUT_SECONDS, self.timeout_seconds),
         )
         if (
             not isinstance(adapters, list)
@@ -354,11 +371,53 @@ class LocalGemmaEscalationAdapter:
                 reason=EscalationReason.ARTIFACT_UNAVAILABLE,
             )
 
+    def _verify_runtime(self) -> None:
+        # Re-check the opt-in and bound file for each health check and release
+        # attempt so a resident process cannot continue after revocation or
+        # artifact tampering. llama.cpp may briefly reject an identity endpoint
+        # while its idle model allocation is waking, so repeat the *complete*
+        # identity contract once. A persistent mismatch still fails closed.
+        self._validate_opt_in()
+        self._verify_lora_file()
+        for attempt in range(RUNTIME_VERIFY_ATTEMPTS):
+            try:
+                self._verify_runtime_once()
+                break
+            except GemmaEscalationError as error:
+                if (
+                    error.reason is not EscalationReason.ADAPTER_ERROR
+                    or attempt + 1 >= RUNTIME_VERIFY_ATTEMPTS
+                ):
+                    raise
+                time.sleep(RUNTIME_VERIFY_RETRY_SECONDS)
+        object.__setattr__(self, "_runtime_identity_verified", True)
+
+    def _cached_runtime_is_sleeping(self) -> bool:
+        """Check an already-verified sleeping server without waking its model."""
+
+        if not self._runtime_identity_verified:
+            return False
+        self._validate_opt_in()
+        self._verify_lora_file()
+        props = self._fetch_json(
+            Request(
+                _runtime_url(self.api_url, "props"),
+                headers=self._headers(),
+            ),
+            timeout=min(3.0, self.timeout_seconds),
+        )
+        return (
+            isinstance(props, dict)
+            and props.get("is_sleeping") is True
+            and props.get("model_alias") == self.model_id
+        )
+
     def _request_assessment(
         self, image_bytes: bytes, content_type: str
     ) -> dict[str, object]:
         body = {
             "model": self.model_id,
+            "lora": [{"id": 0, "scale": 1.0}],
             "temperature": 0,
             "max_tokens": 128,
             "chat_template_kwargs": {"enable_thinking": False},
@@ -488,8 +547,12 @@ class LocalGemmaEscalationAdapter:
     def _assess_sync(
         self, image_bytes: bytes, content_type: str
     ) -> EscalationAssessment:
-        self._verify_runtime()
-        return self._normalize(self._request_assessment(image_bytes, content_type))
+        # Health checks and inference share a single-slot llama.cpp runtime.
+        # Serializing them prevents a browser health request from colliding
+        # with the first completion while an idle model is being restored.
+        with self._runtime_lock:
+            self._verify_runtime()
+            return self._normalize(self._request_assessment(image_bytes, content_type))
 
     async def assess(
         self,
@@ -497,6 +560,7 @@ class LocalGemmaEscalationAdapter:
         *,
         filename: str,
         content_type: str,
+        allow_experimental_input: bool = False,
     ) -> EscalationAssessment:
         del filename
         if content_type != "image/jpeg":
@@ -506,7 +570,10 @@ class LocalGemmaEscalationAdapter:
                 instruction="Route the image to human prioritization.",
                 model=self.model_label,
             )
-        if hashlib.sha256(image_bytes).hexdigest() not in self.input_allowlist:
+        if (
+            not allow_experimental_input
+            and hashlib.sha256(image_bytes).hexdigest() not in self.input_allowlist
+        ):
             return uncertain_escalation(
                 reason=EscalationReason.ADAPTER_ERROR,
                 summary="Review priority is uncertain outside the fixed DeepDRiD demo scope.",
@@ -536,7 +603,9 @@ class LocalGemmaEscalationAdapter:
 
     def runtime_status(self) -> dict[str, object]:
         try:
-            self._verify_runtime()
+            with self._runtime_lock:
+                if not self._cached_runtime_is_sleeping():
+                    self._verify_runtime()
         except Exception:
             return {
                 "status": "unavailable",

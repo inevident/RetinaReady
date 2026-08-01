@@ -393,8 +393,9 @@ class LocalEscalationSpecialistAdapter:
         *,
         filename: str,
         content_type: str,
+        allow_experimental_input: bool = False,
     ) -> EscalationAssessment:
-        del filename
+        del filename, allow_experimental_input
         if content_type not in {"image/jpeg", "image/png", "image/webp"}:
             return uncertain_escalation(
                 reason=EscalationReason.ADAPTER_ERROR,

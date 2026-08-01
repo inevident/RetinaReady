@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 from time import perf_counter
 from urllib.parse import unquote
@@ -27,6 +28,8 @@ MAX_UPLOAD_BYTES = 16 * 1024 * 1024
 ACCEPTED_IMAGE_CONTENT_TYPES = frozenset(
     {"image/jpeg", "image/png", "image/webp"}
 )
+VIDEO_CANDIDATE_WORKFLOW_OPT_IN = "RETINA_ENABLE_VIDEO_CANDIDATE_WORKFLOW"
+VIDEO_CANDIDATE_INPUT_ORIGIN = "video-candidate"
 analysis_engine = build_analyzer()
 escalation_engine = build_escalation_adapter()
 
@@ -56,6 +59,33 @@ def _dataset_demo_samples_available() -> bool:
         return False
     return observed == SPECIALIST_DEMO_IMAGE_SHA256
 
+
+def _video_candidate_workflow_enabled() -> bool:
+    """Read the explicit opt-in at request time without widening normal uploads."""
+
+    return os.getenv(VIDEO_CANDIDATE_WORKFLOW_OPT_IN) == "1"
+
+
+def _allow_experimental_input(input_origin: str | None) -> bool:
+    """Authorize only the exact, opt-in video-candidate request origin."""
+
+    if input_origin is None:
+        return False
+    if input_origin != VIDEO_CANDIDATE_INPUT_ORIGIN:
+        raise HTTPException(
+            status_code=400,
+            detail="X-Input-Origin must be exactly video-candidate when provided.",
+        )
+    if not _video_candidate_workflow_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Experimental video-candidate workflow is disabled. Set "
+                f"{VIDEO_CANDIDATE_WORKFLOW_OPT_IN}=1 to opt in."
+            ),
+        )
+    return True
+
 app = FastAPI(
     title="RetinaReady",
     description="Offline retinal capture-quality and review-priority research demo.",
@@ -83,6 +113,7 @@ def health() -> dict[str, object]:
         "product_modes": [mode.value for mode in ProductMode],
         "escalation": escalation_runtime,
         "dataset_samples_available": _dataset_demo_samples_available(),
+        "video_candidate_workflow_enabled": _video_candidate_workflow_enabled(),
     }
 
 
@@ -181,6 +212,7 @@ async def workflow_analyze(
     x_product_mode: ProductMode = Header(default=ProductMode.QUALITY_ONLY),
     x_filename: str = Header(default="retinal-capture.jpg"),
     x_demo_scenario: str | None = Header(default=None),
+    x_input_origin: str | None = Header(default=None),
 ) -> WorkflowResponse:
     """Run an explicit product mode without changing the quality-only API.
 
@@ -192,6 +224,20 @@ async def workflow_analyze(
     """
 
     started = perf_counter()
+    allow_experimental_input = _allow_experimental_input(x_input_origin)
+    if allow_experimental_input and x_product_mode is ProductMode.ESCALATION_ONLY:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Video-candidate inputs must run through the quality gate before "
+                "review prioritization. Use QUALITY_ONLY or COMBINED."
+            ),
+        )
+    if allow_experimental_input and x_demo_scenario is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Video-candidate inputs cannot use a deterministic demo scenario.",
+        )
     request_content_type = request.headers.get(
         "content-type", "application/octet-stream"
     )
@@ -230,6 +276,7 @@ async def workflow_analyze(
         filename=filename,
         content_type=content_type,
         scenario=x_demo_scenario,
+        allow_experimental_input=allow_experimental_input,
     )
     elapsed_ms = round((perf_counter() - started) * 1000, 1)
     result.display["meta"] = {

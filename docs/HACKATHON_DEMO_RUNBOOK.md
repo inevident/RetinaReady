@@ -43,10 +43,10 @@ Say:
 
 > This is a real, openly licensed moving color retinal recording from a
 > purpose-built clinical camera. We decode it locally and run the same
-> six-hertz technical telemetry, but we deliberately stop at candidate-frame
-> selection. None of these video frames reaches the trained quality or
-> priority models; production would export a device still into that verified
-> workflow.
+> six-hertz technical telemetry. After five stable frames, we freeze one JPEG
+> locally and run it through quality first, then review priority only if it is
+> usable. The raw video never enters either model. This candidate route is an
+> explicitly enabled experimental OOD demo, not device-video validation.
 
 For a visible fail-closed example, load
 `data/external/fundus-video/kestrel-3100m-self-service.mp4`. It shows a real
@@ -54,8 +54,8 @@ tabletop Kestrel workflow but does not expose a raw color retinal feed, so the
 preview should remain at **No color fundus field detected** and finish with no
 submitted still. Do not use either recording to claim device validation or
 model accuracy. The retrospective replay remains the dependable main-stage
-path because only its untouched pinned still is inside the current model
-contract.
+path because only its untouched pinned still is inside the verified fixed-hash
+model contract; the extracted video still is intentionally labelled experimental.
 
 ### 0:50–1:35 — Fixed dataset cases
 

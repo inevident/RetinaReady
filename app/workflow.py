@@ -98,6 +98,7 @@ class QualityAnalyzer(Protocol):
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> dict[str, object]: ...
 
 
@@ -112,6 +113,7 @@ class EscalationAdapter(Protocol):
         *,
         filename: str,
         content_type: str,
+        allow_experimental_input: bool = False,
     ) -> EscalationAssessment: ...
 
 
@@ -202,8 +204,9 @@ class UnavailableEscalationAdapter:
         *,
         filename: str,
         content_type: str,
+        allow_experimental_input: bool = False,
     ) -> EscalationAssessment:
-        del image_bytes, filename, content_type
+        del image_bytes, filename, content_type, allow_experimental_input
         return uncertain_escalation(
             reason=EscalationReason.ARTIFACT_UNAVAILABLE,
             summary="Review priority is uncertain because no validated local priority model is loaded.",
@@ -283,14 +286,17 @@ class WorkflowOrchestrator:
         filename: str,
         content_type: str,
         scenario: str | None,
+        allow_experimental_input: bool,
     ) -> dict[str, object]:
         try:
-            result = await self.quality.analyze(
-                image_bytes,
-                filename=filename,
-                content_type=content_type,
-                scenario=scenario,
-            )
+            kwargs: dict[str, object] = {
+                "filename": filename,
+                "content_type": content_type,
+                "scenario": scenario,
+            }
+            if allow_experimental_input:
+                kwargs["allow_experimental_input"] = True
+            result = await self.quality.analyze(image_bytes, **kwargs)
         except Exception:
             return _quality_unavailable()
         if not isinstance(result, dict) or result.get("status") not in {
@@ -308,13 +314,16 @@ class WorkflowOrchestrator:
         *,
         filename: str,
         content_type: str,
+        allow_experimental_input: bool,
     ) -> EscalationAssessment:
         try:
-            result = await self.escalation.assess(
-                image_bytes,
-                filename=filename,
-                content_type=content_type,
-            )
+            kwargs: dict[str, object] = {
+                "filename": filename,
+                "content_type": content_type,
+            }
+            if allow_experimental_input:
+                kwargs["allow_experimental_input"] = True
+            result = await self.escalation.assess(image_bytes, **kwargs)
         except Exception:
             return uncertain_escalation(
                 reason=EscalationReason.ADAPTER_ERROR,
@@ -360,6 +369,7 @@ class WorkflowOrchestrator:
         filename: str,
         content_type: str,
         scenario: str | None = None,
+        allow_experimental_input: bool = False,
     ) -> WorkflowResponse:
         if mode is ProductMode.QUALITY_ONLY:
             quality = await self._quality(
@@ -367,6 +377,7 @@ class WorkflowOrchestrator:
                 filename=filename,
                 content_type=content_type,
                 scenario=scenario,
+                allow_experimental_input=allow_experimental_input,
             )
             return WorkflowResponse(
                 product_mode=mode,
@@ -397,6 +408,7 @@ class WorkflowOrchestrator:
                 image_bytes,
                 filename=filename,
                 content_type=content_type,
+                allow_experimental_input=allow_experimental_input,
             )
             released = escalation.release_allowed
             return WorkflowResponse(
@@ -436,6 +448,7 @@ class WorkflowOrchestrator:
             filename=filename,
             content_type=content_type,
             scenario=scenario,
+            allow_experimental_input=allow_experimental_input,
         )
         if quality["status"] != "READY":
             escalation = uncertain_escalation(
@@ -472,6 +485,7 @@ class WorkflowOrchestrator:
             image_bytes,
             filename=filename,
             content_type=content_type,
+            allow_experimental_input=allow_experimental_input,
         )
         released = escalation.release_allowed
         return WorkflowResponse(

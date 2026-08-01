@@ -492,6 +492,16 @@ h1 em {
   object-fit: cover;
 }
 
+.guidance-video-source {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0.001;
+  pointer-events: none;
+}
+
 .guidance-vignette {
   z-index: 1;
   background:

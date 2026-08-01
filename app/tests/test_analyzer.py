@@ -145,6 +145,75 @@ class AnalyzerTests(unittest.TestCase):
             result["decision_trace"]["specialist"], "Outside dataset scope"
         )
 
+    def test_specialist_video_candidate_bypasses_only_the_input_hash_pin(self) -> None:
+        class RecordingSpecialist(FakeSpecialist):
+            def __init__(self) -> None:
+                self.seen: list[bytes] = []
+
+            def assess(self, image_bytes: bytes) -> FakeAssessment:
+                self.seen.append(image_bytes)
+                return FakeAssessment()
+
+        specialist = RecordingSpecialist()
+        analyzer = SpecialistLocalAnalyzer(
+            specialist=specialist,
+            input_allowlist=frozenset({hashlib.sha256(b"fixed-sample").hexdigest()}),
+        )
+
+        normal = asyncio.run(
+            analyzer.analyze(
+                b"video-derived-jpeg",
+                filename="candidate.jpg",
+                content_type="image/jpeg",
+            )
+        )
+        experimental = asyncio.run(
+            analyzer.analyze(
+                b"video-derived-jpeg",
+                filename="candidate.jpg",
+                content_type="image/jpeg",
+                allow_experimental_input=True,
+            )
+        )
+
+        self.assertEqual(normal["status"], "LIMITED")
+        self.assertEqual(normal["decision_trace"]["specialist"], "Outside dataset scope")
+        self.assertEqual(experimental["status"], "READY")
+        self.assertEqual(specialist.seen, [b"video-derived-jpeg"])
+
+    def test_specialist_video_candidate_still_requires_verified_bundle_and_type(self) -> None:
+        class MustNotRun(FakeSpecialist):
+            bundle_verified = False
+
+            def assess(self, image_bytes: bytes) -> FakeAssessment:
+                raise AssertionError("unverified specialist must not run")
+
+        analyzer = SpecialistLocalAnalyzer(
+            specialist=MustNotRun(),
+            input_allowlist=frozenset({hashlib.sha256(b"fixed-sample").hexdigest()}),
+        )
+        unavailable = asyncio.run(
+            analyzer.analyze(
+                b"video-derived-jpeg",
+                filename="candidate.jpg",
+                content_type="image/jpeg",
+                allow_experimental_input=True,
+            )
+        )
+        unsupported = asyncio.run(
+            SpecialistLocalAnalyzer(specialist=FakeSpecialist()).analyze(
+                b"image",
+                filename="candidate.dcm",
+                content_type="application/dicom",
+                allow_experimental_input=True,
+            )
+        )
+
+        self.assertEqual(unavailable["status"], "LIMITED")
+        self.assertEqual(unavailable["decision_trace"]["specialist"], "Unavailable")
+        self.assertEqual(unsupported["status"], "LIMITED")
+        self.assertEqual(unsupported["eyebrow"], "Unsupported image")
+
     def test_specialist_only_abstention_preserves_limited_contract(self) -> None:
         class LimitedAssessment(FakeAssessment):
             decision = "LIMITED"
