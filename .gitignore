@@ -35,3 +35,4 @@ wandb/
 # the public demo reproducible. The multi-gigabyte Gemma base/projector remain
 # ignored and are documented in models/README.md.
 !models/retinapriority-gemma4-26b/retinapriority-gemma4-26b-a4b-lora-f32.gguf
+.pytest_cache/
